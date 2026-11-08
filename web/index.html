@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b5cd5">
+<title>Fare Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column. Search form card on top, results list below. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #111a2b;
+  --muted: #5d6779;
+  --line: #e0e5ec;
+  --accent: #0b5cd5;
+  --accent-ink: #ffffff;
+  --field: #f7f9fb;
+  --good: #11805a;
+  --good-bg: #e2f4ec;
+  --bad: #c3362b;
+  --bad-bg: #fbe8e6;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131c; --surface: #171e2a; --ink: #e8edf4; --muted: #9aa5b6; --line: #273142;
+    --accent: #5b9bff; --accent-ink: #0e131c; --field: #121823;
+    --good: #4fd19c; --good-bg: #133528; --bad: #ff7b6f; --bad-bg: #3d1d1b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131c; --surface: #171e2a; --ink: #e8edf4; --muted: #9aa5b6; --line: #273142;
+  --accent: #5b9bff; --accent-ink: #0e131c; --field: #121823;
+  --good: #4fd19c; --good-bg: #133528; --bad: #ff7b6f; --bad-bg: #3d1d1b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.45; }
+[hidden] { display: none !important; }
+
+.wrap {
+  max-width: 560px; margin: 0 auto; display: grid; gap: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+header { display: flex; align-items: center; gap: 10px; }
+header svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+
+/* form */
+form { display: grid; gap: 12px; }
+.row { display: grid; gap: 10px; }
+.row-2 { grid-template-columns: 1fr 1fr; }
+.row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.route { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; align-items: end; }
+.field { display: grid; gap: 4px; min-width: 0; }
+label, .label { font-size: 12px; font-weight: 500; color: var(--muted); }
+input, select {
+  width: 100%; min-width: 0; min-height: 44px; font: inherit; color: var(--ink);
+  background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
+}
+.iata { font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.swap {
+  width: 40px; height: 44px; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  display: grid; place-items: center; border-radius: 10px;
+}
+.swap svg { width: 20px; height: 20px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.seg button { font: inherit; font-size: 14px; border: 0; border-radius: 8px; min-height: 36px; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(17, 26, 43, .12); }
+.search-btn {
+  min-height: 50px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink);
+  font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.search-btn:disabled { opacity: .65; cursor: progress; }
+.hint { font-size: 13px; color: var(--muted); }
+.error { margin: 0; font-size: 14px; color: var(--bad); }
+
+/* results */
+.results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; padding: 0 2px; }
+.results-head h2 { font-size: 17px; margin: 0; }
+.results-head h2 .codes { font-family: var(--mono); letter-spacing: .04em; }
+.avg { font-size: 13px; color: var(--muted); }
+.avg b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.notice { font-size: 13px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; }
+
+.fares { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.fare { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; }
+.fare + .fare { border-top: 1px solid var(--line); }
+.fare-dates { font-weight: 600; }
+.fare-meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.fare-price { display: grid; justify-items: end; gap: 4px; }
+.sign { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.sign::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sign.below { color: var(--good); background: var(--good-bg); }
+.sign.above { color: var(--bad); background: var(--bad-bg); }
+.price {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 12px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); text-decoration: none; font-size: 17px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.price svg { width: 14px; height: 14px; }
+.empty { padding: 24px 16px; text-align: center; color: var(--muted); }
+footer { font-size: 12px; color: var(--muted); text-align: center; }
+
+@media (max-width: 400px) {
+  .row-3 { grid-template-columns: 1fr 1fr; }
+  .row-3 .field:last-child { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+    <div>
+      <h1>Fare Watch</h1>
+      <p class="sub">Cheapest flights in your travel window</p>
+    </div>
+  </header>
+
+  <form class="card" id="form" novalidate>
+    <div class="route">
+      <div class="field">
+        <label for="from">From</label>
+        <input id="from" class="iata" value="JFK" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <button type="button" class="swap" id="swap" aria-label="Swap From and To">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>
+      </button>
+      <div class="field">
+        <label for="to">To</label>
+        <input id="to" class="iata" value="LIS" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="row row-2">
+      <div class="field">
+        <label for="start">Window starts</label>
+        <input id="start" type="date">
+      </div>
+      <div class="field">
+        <label for="days">Window length</label>
+        <select id="days">
+          <option value="7">1 week</option>
+          <option value="14" selected>2 weeks</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="seg" role="group" aria-label="Trip type">
+      <button type="button" id="rt" aria-pressed="true">Round trip</button>
+      <button type="button" id="ow" aria-pressed="false">One-way</button>
+    </div>
+
+    <div class="row row-3">
+      <div class="field" id="nights-field">
+        <label for="nights">Nights</label>
+        <input id="nights" type="number" inputmode="numeric" min="1" max="13" value="7">
+      </div>
+      <div class="field">
+        <label for="stops">Stops</label>
+        <select id="stops">
+          <option value="">Any</option>
+          <option value="0">Nonstop</option>
+          <option value="1">Up to 1</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="adults">Adults</label>
+        <select id="adults"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+      </div>
+    </div>
+
+    <p class="error" id="error" role="alert" hidden></p>
+    <button class="search-btn" id="go" type="submit">Search flights</button>
+    <span class="hint" id="plan"></span>
+  </form>
+
+  <section id="results" aria-live="polite" hidden>
+    <div class="results-head">
+      <h2 id="results-title"></h2>
+      <span class="avg" id="avg"></span>
+    </div>
+    <p class="notice" id="notice" hidden></p>
+    <ul class="fares" id="fares"></ul>
+  </section>
+
+  <footer>Tap a price to book it on Google Flights with the same dates and passengers.</footer>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const CUR = { USD: "$", EUR: "€", GBP: "£", BRL: "R$", CAD: "C$" };
+  let trip = "round_trip";
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const day = (s) => parse(s).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+  const money = (n, c) => `${CUR[c] || c + " "}${Math.round(n).toLocaleString("en-US")}`;
+  const dur = (m) => (m ? `${Math.floor(m / 60)}h ${pad(m % 60)}m` : "");
+  const stops = (s) => (s === 0 ? "Nonstop" : `${s} stop${s > 1 ? "s" : ""}`);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  $("start").value = iso(addDays(today, 60));
+
+  function readForm() {
+    return {
+      from: $("from").value.trim().toUpperCase(),
+      to: $("to").value.trim().toUpperCase(),
+      start: $("start").value,
+      days: +$("days").value,
+      trip,
+      nights: parseInt($("nights").value, 10),
+      stops: $("stops").value,
+      adults: +$("adults").value,
+      currency: "USD",
+    };
+  }
+
+  function check(q) {
+    if (!/^[A-Z]{3}$/.test(q.from) || !/^[A-Z]{3}$/.test(q.to)) return "Enter 3-letter airport codes, like JFK or LIS.";
+    if (q.from === q.to) return "From and To must be different.";
+    if (!q.start) return "Pick the first day of your travel window.";
+    if (parse(q.start) < today) return "Pick a start date from today onwards.";
+    if (q.trip === "round_trip" && !(q.nights >= 1 && q.nights < q.days)) return `Nights must be between 1 and ${q.days - 1} for a ${q.days}-day window.`;
+    return "";
+  }
+
+  function combinations(q) {
+    const first = parse(q.start), end = addDays(first, q.days - 1), out = [];
+    for (let d = first; d <= end; d = addDays(d, 1)) {
+      if (q.trip === "one_way") out.push([iso(d), null]);
+      else if (addDays(d, q.nights) <= end) out.push([iso(d), iso(addDays(d, q.nights))]);
+    }
+    return out;
+  }
+
+  function updatePlan() {
+    const q = readForm();
+    const n = check(q) ? 0 : combinations(q).length;
+    $("plan").textContent = n ? `Checks ${n} date combination${n > 1 ? "s" : ""} in your window.` : "";
+  }
+
+  // ---------- demo prices, used only where the search server isn't reachable ----------
+  function googleLink(q, depart, ret) {
+    let text = `Flights from ${q.from} to ${q.to} on ${depart}` + (ret ? ` through ${ret}` : " one way");
+    if (q.adults > 1) text += ` for ${q.adults} adults`;
+    if (q.stops === "0") text += " nonstop";
+    return "https://www.google.com/travel/flights?" + new URLSearchParams({ q: text, curr: q.currency, hl: "en" });
+  }
+  function demoResults(q) {
+    let seed = [...(q.from + q.to)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+    const base = 180 + (seed % 500), airlines = ["Skyline Air", "Blue Jet", "Northwind", "Coastal Airways"];
+    const fares = [];
+    for (const [depart, ret] of combinations(q)) {
+      for (let i = 0; i < 3; i++) {
+        const s = [0, 1, 1, 2][Math.floor(rand() * 4)];
+        if (q.stops !== "" && s > +q.stops) continue;
+        fares.push({ depart_date: depart, return_date: ret, nights: ret ? q.nights : null,
+          price: Math.round(base * (ret ? 1.8 : 1) * (0.75 + rand() * 0.6) * (1 - s * 0.1) * q.adults),
+          currency: q.currency, airlines: [airlines[Math.floor(rand() * 4)]], stops: s,
+          duration_minutes: Math.round(240 + rand() * 200 + s * 120), booking_url: googleLink(q, depart, ret) });
+      }
+    }
+    const avg = fares.reduce((t, f) => t + f.price, 0) / (fares.length || 1);
+    fares.forEach((f) => (f.vs_average = f.price <= avg ? "below" : "above"));
+    fares.sort((a, b) => a.price - b.price);
+    return { origin: q.from, destination: q.to, currency: q.currency, searched: combinations(q).length,
+      average: avg, average_source: "found", fares: fares.slice(0, 10), demo: true };
+  }
+
+  // ---------- results ----------
+  function render(data) {
+    $("results").hidden = false;
+    $("results-title").innerHTML = `<span class="codes">${esc(data.origin)} → ${esc(data.destination)}</span>`;
+    $("avg").innerHTML = data.average != null
+      ? `${data.average_source === "typical" ? "Typical price" : "Average"} for this route: <b>${money(data.average, data.currency)}</b>`
+      : "";
+    const notes = [];
+    if (data.demo) notes.push("Demo prices: the search server isn't connected on this copy of the page. The Google Flights links are real.");
+    if (data.skipped) notes.push(`Only the first ${data.searched} date combinations were checked.`);
+    $("notice").hidden = !notes.length;
+    $("notice").textContent = notes.join(" ");
+
+    $("fares").innerHTML = data.fares.length ? data.fares.map((f) => {
+      const dates = f.return_date ? `${day(f.depart_date)} → ${day(f.return_date)}` : day(f.depart_date);
+      const meta = [f.nights ? `${f.nights} nights` : "One-way", (f.airlines || []).join(", "), stops(f.stops), dur(f.duration_minutes)]
+        .filter(Boolean).map(esc).join(" · ");
+      const sign = f.vs_average === "below" ? `<span class="sign below">Below average</span>`
+        : f.vs_average === "above" ? `<span class="sign above">Above average</span>` : "";
+      const url = /^https:\/\//.test(f.booking_url || "") ? f.booking_url : googleLink(readForm(), f.depart_date, f.return_date);
+      return `<li class="fare">
+        <div><div class="fare-dates">${dates}</div><div class="fare-meta">${meta}</div></div>
+        <div class="fare-price">${sign}
+          <a class="price" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Book for ${money(f.price, f.currency)} on Google Flights">${money(f.price, f.currency)}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+        </div>
+      </li>`;
+    }).join("") : `<li class="empty">No flights found for these dates. Try another window or allow more stops.</li>`;
+  }
+
+  async function search(e) {
+    e?.preventDefault();
+    const q = readForm(), problem = check(q);
+    $("error").hidden = !problem; $("error").textContent = problem;
+    if (problem) return;
+    try { localStorage.setItem("farewatch", JSON.stringify(q)); } catch (err) {}
+
+    const n = combinations(q).length;
+    $("go").disabled = true; $("go").textContent = `Searching ${n} date combination${n > 1 ? "s" : ""}…`;
+    const params = new URLSearchParams({ from: q.from, to: q.to, start: q.start, days: q.days, trip: q.trip,
+      nights: q.nights, stops: q.stops, adults: q.adults, currency: q.currency });
+    let data = null, failure = "";
+    try {
+      const res = await fetch(`api/search?${params}`, { headers: { Accept: "application/json" } });
+      const isJson = (res.headers.get("content-type") || "").includes("json");
+      if (!isJson) data = demoResults(q);                 // no search server behind this page
+      else {
+        const body = await res.json();
+        if (res.ok) data = body; else failure = body.error || "The search failed. Try again.";
+      }
+    } catch (err) {
+      data = demoResults(q);
+    }
+    $("go").disabled = false; $("go").textContent = "Search flights";
+    if (failure) { $("error").hidden = false; $("error").textContent = failure; return; }
+    render(data);
+    $("results").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  function setTrip(t) {
+    trip = t;
+    $("rt").setAttribute("aria-pressed", String(t === "round_trip"));
+    $("ow").setAttribute("aria-pressed", String(t === "one_way"));
+    $("nights-field").hidden = t === "one_way";
+    updatePlan();
+  }
+  $("rt").addEventListener("click", () => setTrip("round_trip"));
+  $("ow").addEventListener("click", () => setTrip("one_way"));
+  $("swap").addEventListener("click", () => { [$("from").value, $("to").value] = [$("to").value, $("from").value]; });
+  ["from", "to"].forEach((id) => $(id).addEventListener("input", (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ""); updatePlan(); }));
+  ["start", "days", "nights"].forEach((id) => $(id).addEventListener("change", updatePlan));
+  $("form").addEventListener("submit", search);
+
+  try {
+    const s = JSON.parse(localStorage.getItem("farewatch") || "null");
+    if (s && s.from && s.start && parse(s.start) >= today) {
+      $("from").value = s.from; $("to").value = s.to; $("start").value = s.start; $("days").value = s.days;
+      $("nights").value = s.nights || 7; $("stops").value = s.stops ?? ""; $("adults").value = s.adults || 1;
+      setTrip(s.trip || "round_trip");
+    }
+  } catch (err) {}
+  updatePlan();
+})();
+</script>
+</body>
+</html>

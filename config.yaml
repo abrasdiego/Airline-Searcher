@@ -1,0 +1,39 @@
+# Airline Searcher configuration. Edit the searches below, commit, and the
+# daily GitHub Action will pick up the changes on its next run.
+
+settings:
+  provider: serpapi            # serpapi (Google Flights) | duffel | mock (fake data for testing)
+  max_requests_per_search: 60  # safety cap on API calls per search per run
+  email_subject: Daily flight prices
+  history_file: data/history.json
+
+searches:
+  - name: Lisbon trip
+    origin: JFK                # 3-letter IATA airport (JFK) or city code (NYC)
+    destination: LIS
+
+    # The travel window. Use a fixed window...
+    window_start: 2027-01-10
+    window_days: 14            # or: window_end: 2027-01-23
+    # ...or a rolling one that moves with today's date:
+    # window_starts_in_days: 60
+    # window_days: 14
+
+    trip_type: round_trip      # round_trip | one_way
+    nights: 7                  # or a range: {min: 5, max: 9}
+    return_within_window: true # return flight must also be inside the window
+
+    adults: 1
+    cabin: economy             # economy | premium_economy | business | first
+    currency: USD
+    max_stops: 1               # omit for any number of stops
+    # max_price: 900           # hide anything more expensive
+    top_n: 5                   # how many of the cheapest options to list
+
+  # Add more routes by repeating the block:
+  # - name: Weekend in Paris
+  #   origin: LHR
+  #   destination: CDG
+  #   window_starts_in_days: 30
+  #   window_days: 14
+  #   trip_type: one_way

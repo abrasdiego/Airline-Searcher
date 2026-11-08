@@ -1,0 +1,64 @@
+name: Daily flight search
+
+on:
+  schedule:
+    - cron: "17 11 * * *"   # every day at 11:17 UTC — change to suit your time zone
+  workflow_dispatch: {}      # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-flight-search
+  cancel-in-progress: false
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # Price history survives between runs in the Actions cache, so the email
+      # can show whether prices went up or down since yesterday.
+      - name: Restore price history
+        uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: price-history-${{ github.run_id }}
+          restore-keys: price-history-
+
+      - name: Search flights and email results
+        env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          DUFFEL_ACCESS_TOKEN: ${{ secrets.DUFFEL_ACCESS_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python -m airline_searcher --config config.yaml --save-html report.html -v
+
+      - name: Save price history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data
+          key: price-history-${{ github.run_id }}
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-report
+          path: report.html
+          if-no-files-found: ignore
+          retention-days: 14

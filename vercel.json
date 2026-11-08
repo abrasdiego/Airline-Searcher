@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/search.py": {
+      "maxDuration": 60,
+      "includeFiles": "airline_searcher/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/web/index.html" }
+  ]
+}
