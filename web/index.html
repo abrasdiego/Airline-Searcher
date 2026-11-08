@@ -3,882 +3,372 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1d4f9f">
+<meta name="theme-color" content="#0b5cd5">
 <title>Fare Watch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: an airmail envelope — striped band, then a single column of "documents":
-   search form, a boarding pass for the best fare, a price calendar, a departures list, the config slip. */
+/* Layout: one narrow column. Search form card on top, results list below. */
 :root {
-  --paper: #eef2f7;      /* page */
-  --sheet: #ffffff;      /* cards / pass */
-  --ink: #142037;        /* text */
-  --muted: #5a6780;      /* secondary text */
-  --rule: #d5dce7;       /* hairlines */
-  --air-red: #c4372f;    /* airmail stripe */
-  --air-blue: #1d4f9f;   /* airmail stripe + accent */
-  --accent: #1d4f9f;
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #111a2b;
+  --muted: #5d6779;
+  --line: #e0e5ec;
+  --accent: #0b5cd5;
   --accent-ink: #ffffff;
-  --sky: #dce7f5;        /* soft accent fill */
-  --best: #0f7a55;       /* price drop / best */
-  --best-fill: #e2f4ec;
-  --bar: #b9c8de;
-  --field: #f6f8fb;
-  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --field: #f7f9fb;
+  --good: #11805a;
+  --good-bg: #e2f4ec;
+  --bad: #c3362b;
+  --bad-bg: #fbe8e6;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0d1524; --sheet: #16213a; --ink: #e7edf6; --muted: #9aa8c0; --rule: #2a3854;
-    --air-red: #d9554c; --air-blue: #5b8be0; --accent: #6f9cf0; --accent-ink: #0d1524;
-    --sky: #1f2f4f; --best: #4fd1a0; --best-fill: #163a33; --bar: #34476c; --field: #101a2e;
+    --bg: #0e131c; --surface: #171e2a; --ink: #e8edf4; --muted: #9aa5b6; --line: #273142;
+    --accent: #5b9bff; --accent-ink: #0e131c; --field: #121823;
+    --good: #4fd19c; --good-bg: #133528; --bad: #ff7b6f; --bad-bg: #3d1d1b;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #0d1524; --sheet: #16213a; --ink: #e7edf6; --muted: #9aa8c0; --rule: #2a3854;
-  --air-red: #d9554c; --air-blue: #5b8be0; --accent: #6f9cf0; --accent-ink: #0d1524;
-  --sky: #1f2f4f; --best: #4fd1a0; --best-fill: #163a33; --bar: #34476c; --field: #101a2e;
+  --bg: #0e131c; --surface: #171e2a; --ink: #e8edf4; --muted: #9aa5b6; --line: #273142;
+  --accent: #5b9bff; --accent-ink: #0e131c; --field: #121823;
+  --good: #4fd19c; --good-bg: #133528; --bad: #ff7b6f; --bad-bg: #3d1d1b;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
-body {
-  background: var(--paper); color: var(--ink);
-  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
-}
-.stripe {
-  height: 10px;
-  background: repeating-linear-gradient(-45deg,
-    var(--air-red) 0 14px, var(--paper) 14px 22px, var(--air-blue) 22px 36px, var(--paper) 36px 44px);
-}
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.45; }
+[hidden] { display: none !important; }
+
 .wrap {
-  max-width: 680px; margin: 0 auto;
+  max-width: 560px; margin: 0 auto; display: grid; gap: 16px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 40px;
-  display: grid; gap: 18px;
+  padding-block: 24px 40px;
 }
-header { display: grid; gap: 4px; }
-.eyebrow {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--air-red);
-}
-h1 {
-  font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1;
-  letter-spacing: .01em; margin: 0; text-transform: uppercase; text-wrap: balance;
-}
-.lede { color: var(--muted); margin: 0; max-width: 52ch; }
+header { display: flex; align-items: center; gap: 10px; }
+header svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
 
-h2 {
-  font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: .04em;
-  text-transform: uppercase; margin: 0; text-wrap: balance;
-}
-.section { display: grid; gap: 10px; }
-.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.hint { color: var(--muted); font-size: 13px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
 
-/* ---------- Search form ---------- */
-.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; }
-form { display: grid; gap: 14px; }
-.route { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+/* form */
+form { display: grid; gap: 12px; }
+.row { display: grid; gap: 10px; }
+.row-2 { grid-template-columns: 1fr 1fr; }
+.row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.route { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; align-items: end; }
 .field { display: grid; gap: 4px; min-width: 0; }
-label, .label {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
-}
+label, .label { font-size: 12px; font-weight: 500; color: var(--muted); }
 input, select {
-  width: 100%; min-width: 0; font: inherit; color: var(--ink); background: var(--field);
-  border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; min-height: 44px;
+  width: 100%; min-width: 0; min-height: 44px; font: inherit; color: var(--ink);
+  background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
 }
-input:focus-visible, select:focus-visible, button:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
-}
-.iata {
-  font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: .08em;
-  text-transform: uppercase; padding: 4px 12px; text-align: center;
-}
+.iata { font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .swap {
-  width: 44px; height: 44px; margin-bottom: 6px; border-radius: 50%; border: 1px solid var(--rule);
-  background: var(--sheet); color: var(--accent); cursor: pointer; display: grid; place-items: center;
+  width: 40px; height: 44px; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  display: grid; place-items: center; border-radius: 10px;
 }
 .swap svg { width: 20px; height: 20px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--field); border: 1px solid var(--rule); border-radius: 10px; padding: 3px; }
-.seg button {
-  font: inherit; font-weight: 500; border: 0; border-radius: 8px; padding: 8px; min-height: 38px;
-  background: transparent; color: var(--muted); cursor: pointer;
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.seg button { font: inherit; font-size: 14px; border: 0; border-radius: 8px; min-height: 36px; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(17, 26, 43, .12); }
+.search-btn {
+  min-height: 50px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink);
+  font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
 }
-.seg button[aria-pressed="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 3px rgba(20,32,55,.15); }
-.primary {
-  font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .08em; text-transform: uppercase;
-  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; min-height: 52px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-}
-.primary svg { width: 22px; height: 22px; }
-.primary:disabled { opacity: .7; cursor: progress; }
-.plan-line { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.error { color: var(--air-red); font-size: 13px; }
+.search-btn:disabled { opacity: .65; cursor: progress; }
+.hint { font-size: 13px; color: var(--muted); }
+.error { margin: 0; font-size: 14px; color: var(--bad); }
 
-.notice {
-  display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--muted);
-  background: var(--sky); border-radius: 10px; padding: 10px 12px;
-}
-.notice b { color: var(--ink); font-weight: 600; }
+/* results */
+.results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; padding: 0 2px; }
+.results-head h2 { font-size: 17px; margin: 0; }
+.results-head h2 .codes { font-family: var(--mono); letter-spacing: .04em; }
+.avg { font-size: 13px; color: var(--muted); }
+.avg b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.notice { font-size: 13px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; }
 
-/* progress */
-.progress { height: 4px; background: var(--rule); border-radius: 4px; overflow: hidden; }
-.progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .08s linear; }
+.fares { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.fare { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; }
+.fare + .fare { border-top: 1px solid var(--line); }
+.fare-dates { font-weight: 600; }
+.fare-meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.fare-price { display: grid; justify-items: end; gap: 4px; }
+.sign { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.sign::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sign.below { color: var(--good); background: var(--good-bg); }
+.sign.above { color: var(--bad); background: var(--bad-bg); }
+.price {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 12px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); text-decoration: none; font-size: 17px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.price svg { width: 14px; height: 14px; }
+.empty { padding: 24px 16px; text-align: center; color: var(--muted); }
+footer { font-size: 12px; color: var(--muted); text-align: center; }
 
-/* ---------- Boarding pass ---------- */
-.pass {
-  --notch: 14px;
-  display: grid; grid-template-columns: minmax(0, 1fr) 150px;
-  background: var(--sheet); border-radius: 16px; border: 1px solid var(--rule);
-  position: relative; overflow: hidden;
+@media (max-width: 400px) {
+  .row-3 { grid-template-columns: 1fr 1fr; }
+  .row-3 .field:last-child { grid-column: 1 / -1; }
 }
-.pass-main { padding: 16px 18px; display: grid; gap: 14px; min-width: 0; }
-.pass-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-.carrier { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; }
-.badge {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
-  background: var(--best-fill); color: var(--best); padding: 3px 8px; border-radius: 999px; white-space: nowrap;
-}
-.codes { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
-.code { font-family: var(--font-display); font-weight: 700; font-size: 52px; line-height: .9; letter-spacing: .03em; }
-.code small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: .1em; color: var(--muted); margin-top: 6px; }
-.flightpath { position: relative; height: 24px; color: var(--accent); }
-.flightpath::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed var(--rule); }
-.flightpath svg { position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); background: var(--sheet); padding: 0 2px; }
-.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
-.fact .v { font-family: var(--font-mono); font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
-.pass-stub {
-  border-left: 2px dashed var(--rule); padding: 16px 14px; display: grid; align-content: space-between; gap: 10px;
-  background: var(--sky); text-align: center;
-}
-.price-big { font-family: var(--font-display); font-weight: 700; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
-.price-cur { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: .1em; }
-.barcode {
-  height: 46px; border-radius: 3px; opacity: .85;
-  background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 8px, var(--ink) 8px 11px, transparent 11px 12px);
-}
-/* notches where the perforation meets the edges */
-.pass::before, .pass::after {
-  content: ""; position: absolute; right: calc(150px - var(--notch)); width: calc(var(--notch) * 2); height: calc(var(--notch) * 2);
-  border-radius: 50%; background: var(--paper); border: 1px solid var(--rule);
-}
-.pass::before { top: calc(var(--notch) * -1); }
-.pass::after { bottom: calc(var(--notch) * -1); }
-
-/* ---------- Price calendar ---------- */
-.chart { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
-.yaxis { display: flex; flex-direction: column; justify-content: space-between; height: 170px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-align: right; padding-bottom: 0; }
-.plot-scroll { overflow-x: auto; min-width: 0; }
-.plot {
-  display: flex; align-items: flex-end; gap: 6px; height: 170px; min-width: 100%;
-  background-image: linear-gradient(var(--rule) 1px, transparent 1px);
-  background-size: 100% calc(170px / 4); background-position: 0 0;
-  border-bottom: 1px solid var(--muted);
-}
-.bar {
-  flex: 1 0 26px; min-width: 26px; border: 0; padding: 0; cursor: pointer;
-  background: var(--bar); border-radius: 5px 5px 0 0; position: relative;
-}
-.bar.is-best { background: var(--best); }
-.bar[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
-.xlabels { display: flex; gap: 6px; min-width: 100%; }
-.xlabels span { flex: 1 0 26px; min-width: 26px; text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--muted); line-height: 1.25; padding-top: 4px; }
-.picked {
-  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline;
-  border-top: 1px solid var(--rule); padding-top: 10px; font-size: 14px;
-}
-.picked .p { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-/* ---------- Departures list ---------- */
-.board { list-style: none; margin: 0; padding: 0; display: grid; }
-.board li {
-  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center;
-  padding: 12px 0; border-bottom: 1px solid var(--rule);
-}
-.board li:last-child { border-bottom: 0; }
-.rank { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--muted); text-align: center; }
-.board .dates { font-weight: 600; }
-.board .meta { font-size: 13px; color: var(--muted); }
-.board .amt { font-family: var(--font-display); font-weight: 700; font-size: 24px; font-variant-numeric: tabular-nums; text-align: right; }
-.chip { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--sky); color: var(--accent); margin-left: 6px; white-space: nowrap; }
-.chip.ns { background: var(--best-fill); color: var(--best); }
-
-/* ---------- Config slip ---------- */
-pre {
-  margin: 0; overflow-x: auto; background: var(--field); border: 1px dashed var(--rule); border-radius: 10px;
-  padding: 12px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6;
-}
-.ghost {
-  font: inherit; font-size: 13px; font-weight: 500; color: var(--accent); background: transparent;
-  border: 1px solid var(--rule); border-radius: 999px; padding: 6px 14px; min-height: 36px; cursor: pointer;
-}
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.stat { background: var(--field); border-radius: 10px; padding: 10px; }
-.stat .n { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.stat .t { font-size: 12px; color: var(--muted); }
-
-footer { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
-footer a { color: var(--accent); }
-
-.empty { color: var(--muted); padding: 20px 0; text-align: center; }
-
-@media (max-width: 480px) {
-  h1 { font-size: 38px; }
-  .pass { grid-template-columns: 1fr; }
-  .pass-stub { border-left: 0; border-top: 2px dashed var(--rule); grid-template-columns: 1fr auto; text-align: left; align-items: center; }
-  .pass-stub .barcode { grid-column: 1 / -1; height: 34px; }
-  .pass::before, .pass::after { display: none; }
-  .code { font-size: 44px; }
-  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grid3 { grid-template-columns: 1fr 1fr; }
-  .grid3 .field:last-child { grid-column: 1 / -1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .progress > i { transition: none; }
-}
-
-/* ---------- additions: base reset (standalone page), live mode ---------- */
-:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-body { margin: 0; }
-img { max-width: 100%; }
-[hidden] { display: none !important; }
-code { font-family: var(--font-mono); font-size: .92em; }
-
-.notice.live { background: var(--best-fill); }
-.notice.stale { background: var(--sky); }
-.notice .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--best); flex: none; margin-top: 5px; box-shadow: 0 0 0 0 var(--best); animation: pulse 2s infinite; }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(15,122,85,.45); } 70% { box-shadow: 0 0 0 8px rgba(15,122,85,0); } 100% { box-shadow: 0 0 0 0 rgba(15,122,85,0); } }
-.notice .ghost { margin-left: auto; flex: none; }
-.notice-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; width: 100%; }
-.notice-text { flex: 1 1 200px; min-width: 0; }
-
-.tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-.tab {
-  flex: none; font: inherit; font-weight: 500; font-size: 14px; color: var(--muted); background: var(--sheet);
-  border: 1px solid var(--rule); border-radius: 999px; padding: 8px 14px; min-height: 40px; cursor: pointer; white-space: nowrap;
-}
-.tab .tc { font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: .05em; color: var(--ink); margin-right: 6px; }
-.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.tab[aria-selected="true"] .tc { color: var(--accent-ink); }
-
-.delta { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; display: inline-block; }
-.delta.down { background: var(--best-fill); color: var(--best); }
-.delta.up { background: var(--sky); color: var(--air-red); }
-.delta.flat, .delta.new { background: var(--field); color: var(--muted); }
-.pass-note { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
-.book {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-display);
-  font-weight: 600; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; text-decoration: none;
-  background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 8px 12px; min-height: 40px;
-}
-.board .amt-wrap { display: grid; justify-items: end; gap: 2px; }
-.board .amt-wrap a { font-size: 12px; color: var(--accent); }
-
-.trend svg { width: 100%; height: auto; display: block; overflow: visible; }
-.trend .area { fill: var(--sky); }
-.trend .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.trend .grid { stroke: var(--rule); stroke-width: 1; }
-.trend .end { fill: var(--accent); stroke: var(--sheet); stroke-width: 2; }
-.trend .low { fill: var(--best); }
-.trend text { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
-.trend-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
-.trend-meta b { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
-
-.warnings summary { cursor: pointer; color: var(--air-red); font-size: 13px; }
-.warnings ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
-.planner-intro { margin: 0; color: var(--muted); font-size: 14px; }
-@media (prefers-reduced-motion: reduce) { .notice .dot { animation: none; } }
 </style>
 </head>
 <body>
-<div class="stripe" aria-hidden="true"></div>
 <main class="wrap">
   <header>
-    <span class="eyebrow">Daily fare report · by airmail</span>
-    <h1>Fare Watch</h1>
-    <p class="lede" id="lede">The cheapest fares in your travel window, checked every day. This page shows the same results as your daily email.</p>
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+    <div>
+      <h1>Fare Watch</h1>
+      <p class="sub">Cheapest flights in your travel window</p>
+    </div>
   </header>
 
-  <div class="notice" id="banner" role="status"></div>
-
-  <nav class="tabs" id="tabs" role="tablist" aria-label="Routes" hidden></nav>
-
-  <div id="results" class="wrap-inner" style="display:grid;gap:18px">
-    <section class="section" aria-labelledby="best-h">
-      <div class="section-head">
-        <h2 id="best-h">Best fare in your window</h2>
-        <span class="hint" id="searched"></span>
-      </div>
-      <div id="pass"></div>
-    </section>
-
-    <section class="section card trend" id="trend-sec" aria-labelledby="trend-h" hidden>
-      <div class="section-head">
-        <h2 id="trend-h">Best price by day</h2>
-        <span class="hint" id="trend-hint"></span>
-      </div>
-      <div id="trend"></div>
-    </section>
-
-    <section class="section card" aria-labelledby="cal-h">
-      <div class="section-head">
-        <h2 id="cal-h">Price calendar</h2>
-        <span class="hint">Cheapest fare per departure. Tap a bar.</span>
-      </div>
-      <div id="chart"></div>
-    </section>
-
-    <section class="section card" aria-labelledby="top-h">
-      <div class="section-head">
-        <h2 id="top-h">Cheapest 5</h2>
-        <span class="hint">Across all dates</span>
-      </div>
-      <ol class="board" id="board"></ol>
-      <details class="warnings" id="warnings" hidden><summary></summary><ul></ul></details>
-    </section>
-  </div>
-
-  <section class="card" id="planner" aria-labelledby="plan-h" style="display:grid;gap:12px">
-    <div class="section-head">
-      <h2 id="plan-h">Plan a route</h2>
-    </div>
-    <p class="planner-intro" id="planner-intro">Try a route and window with sample prices, then copy the config so the daily search checks it for real.</p>
-    <form id="form" novalidate>
-      <div class="route">
-        <div class="field">
-          <label for="origin">From</label>
-          <input id="origin" class="iata" value="JFK" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="err">
-        </div>
-        <button type="button" class="swap" id="swap" aria-label="Swap origin and destination">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>
-        </button>
-        <div class="field">
-          <label for="destination">To</label>
-          <input id="destination" class="iata" value="LIS" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="err">
-        </div>
-      </div>
-
-      <div class="grid2">
-        <div class="field">
-          <label for="start">Window starts</label>
-          <input id="start" type="date">
-        </div>
-        <div class="field">
-          <label for="days">Window length</label>
-          <select id="days">
-            <option value="7">1 week</option>
-            <option value="10">10 days</option>
-            <option value="14" selected>2 weeks</option>
-            <option value="21">3 weeks</option>
-          </select>
-        </div>
-      </div>
-
+  <form class="card" id="form" novalidate>
+    <div class="route">
       <div class="field">
-        <span class="label" id="trip-l">Trip</span>
-        <div class="seg" role="group" aria-labelledby="trip-l">
-          <button type="button" id="trip-rt" aria-pressed="true">Round trip</button>
-          <button type="button" id="trip-ow" aria-pressed="false">One-way</button>
-        </div>
+        <label for="from">From</label>
+        <input id="from" class="iata" value="JFK" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false">
       </div>
-
-      <div class="grid3">
-        <div class="field">
-          <label for="nmin">Nights (min)</label>
-          <input id="nmin" type="number" inputmode="numeric" min="1" max="30" value="7">
-        </div>
-        <div class="field">
-          <label for="nmax">Nights (max)</label>
-          <input id="nmax" type="number" inputmode="numeric" min="1" max="30" value="7">
-        </div>
-        <div class="field">
-          <label for="stops">Stops</label>
-          <select id="stops">
-            <option value="">Any</option>
-            <option value="0">Nonstop</option>
-            <option value="1" selected>Up to 1</option>
-            <option value="2">Up to 2</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="adults">Adults</label>
-          <select id="adults">
-            <option>1</option><option>2</option><option>3</option><option>4</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="currency">Currency</label>
-          <select id="currency">
-            <option>USD</option><option>EUR</option><option>GBP</option><option>BRL</option><option>CAD</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="cabin">Cabin</label>
-          <select id="cabin">
-            <option value="economy">Economy</option>
-            <option value="premium_economy">Premium</option>
-            <option value="business">Business</option>
-            <option value="first">First</option>
-          </select>
-        </div>
-      </div>
-
-      <p class="error" id="err" role="alert" hidden></p>
-      <div class="plan-line" id="plan-line"></div>
-      <button class="primary" id="go" type="submit">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
-        <span id="go-label">Preview sample fares</span>
+      <button type="button" class="swap" id="swap" aria-label="Swap From and To">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>
       </button>
-      <div class="progress" id="progress" hidden><i></i></div>
-    </form>
-
-    <div class="section-head" style="margin-top:6px">
-      <h2 id="cfg-h" style="font-size:18px">Config for the daily search</h2>
-      <button class="ghost" id="copy" type="button">Copy config</button>
+      <div class="field">
+        <label for="to">To</label>
+        <input id="to" class="iata" value="LIS" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
     </div>
-    <div class="stats" id="stats"></div>
-    <p class="hint" style="margin:0">Add this under <code>searches:</code> in <code>config.yaml</code> in the repository. Each date combination is one API search.</p>
-    <pre id="yaml" tabindex="0"></pre>
+
+    <div class="row row-2">
+      <div class="field">
+        <label for="start">Window starts</label>
+        <input id="start" type="date">
+      </div>
+      <div class="field">
+        <label for="days">Window length</label>
+        <select id="days">
+          <option value="7">1 week</option>
+          <option value="14" selected>2 weeks</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="seg" role="group" aria-label="Trip type">
+      <button type="button" id="rt" aria-pressed="true">Round trip</button>
+      <button type="button" id="ow" aria-pressed="false">One-way</button>
+    </div>
+
+    <div class="row row-3">
+      <div class="field" id="nights-field">
+        <label for="nights">Nights</label>
+        <input id="nights" type="number" inputmode="numeric" min="1" max="13" value="7">
+      </div>
+      <div class="field">
+        <label for="stops">Stops</label>
+        <select id="stops">
+          <option value="">Any</option>
+          <option value="0">Nonstop</option>
+          <option value="1">Up to 1</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="adults">Adults</label>
+        <select id="adults"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+      </div>
+    </div>
+
+    <p class="error" id="error" role="alert" hidden></p>
+    <button class="search-btn" id="go" type="submit">Search flights</button>
+    <span class="hint" id="plan"></span>
+  </form>
+
+  <section id="results" aria-live="polite" hidden>
+    <div class="results-head">
+      <h2 id="results-title"></h2>
+      <span class="avg" id="avg"></span>
+    </div>
+    <p class="notice" id="notice" hidden></p>
+    <ul class="fares" id="fares"></ul>
   </section>
 
-  <footer>
-    <span>Code and setup: <a href="https://github.com/abrasdiego/Airline-Searcher" target="_blank" rel="noopener">github.com/abrasdiego/Airline-Searcher</a></span>
-    <span id="foot-note"></span>
-  </footer>
+  <footer>Tap a price to book it on Google Flights with the same dates and passengers.</footer>
 </main>
 
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const AIRLINES = ["Skyline Air", "Blue Jet", "Northwind", "Coastal Airways", "Meridian", "Altair"];
-  const CUR = { USD: "$", EUR: "€", GBP: "£", BRL: "R$", CAD: "C$", AUD: "A$", JPY: "¥", INR: "₹", MXN: "MX$" };
-  const CABIN_X = { economy: 1, premium_economy: 1.7, business: 3.6, first: 5.5 };
-  const CUR_X = { USD: 1, EUR: 0.93, GBP: 0.79, BRL: 5.4, CAD: 1.37 };
-  const DATA_URL = "data/latest.json";
+  const CUR = { USD: "$", EUR: "€", GBP: "£", BRL: "R$", CAD: "C$" };
   let trip = "round_trip";
-  let live = null;         // parsed latest.json, when the daily job has published one
-  let routeIdx = 0;
 
-  // ---------- dates & formatting ----------
   const pad = (n) => String(n).padStart(2, "0");
   const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-  const fmt = (d) => d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
-  const fmtShort = (d) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-  const money = (n, c) => `${CUR[c] || (c + " ")}${Math.round(n).toLocaleString("en-US")}`;
-  const durTxt = (m) => m ? `${Math.floor(m / 60)}h ${pad(m % 60)}m` : "–";
-  const stopsTxt = (s) => s === 0 ? "Nonstop" : `${s} stop${s > 1 ? "s" : ""}`;
-  const datesTxt = (o) => o.ret ? `${fmt(o.depart)} → ${fmt(o.ret)}` : fmt(o.depart);
-  const nights = (o) => o.ret ? Math.round((o.ret - o.depart) / 864e5) : null;
+  const day = (s) => parse(s).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+  const money = (n, c) => `${CUR[c] || c + " "}${Math.round(n).toLocaleString("en-US")}`;
+  const dur = (m) => (m ? `${Math.floor(m / 60)}h ${pad(m % 60)}m` : "");
+  const stops = (s) => (s === 0 ? "Nonstop" : `${s} stop${s > 1 ? "s" : ""}`);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const safeUrl = (u) => (typeof u === "string" && /^https:\/\//.test(u)) ? u : null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   $("start").value = iso(addDays(today, 60));
 
-  function deltaHtml(price, prev, currency, suffix = "") {
-    if (prev == null) return "";
-    const d = price - prev;
-    if (Math.abs(d) < 0.5) return `<span class="delta flat">no change${suffix}</span>`;
-    return d < 0
-      ? `<span class="delta down">▼ ${money(-d, currency)}${suffix}</span>`
-      : `<span class="delta up">▲ ${money(d, currency)}${suffix}</span>`;
-  }
-
-  // ---------- seeded random for sample prices ----------
-  function hash(str) { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
-  function rng(seed) { return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-
   function readForm() {
-    const origin = $("origin").value.trim().toUpperCase();
-    const destination = $("destination").value.trim().toUpperCase();
-    const start = $("start").value;
-    const days = +$("days").value;
-    const nmin = parseInt($("nmin").value, 10), nmax = parseInt($("nmax").value, 10);
-    const stops = $("stops").value === "" ? null : +$("stops").value;
-    const errs = [];
-    if (!/^[A-Z]{3}$/.test(origin) || !/^[A-Z]{3}$/.test(destination)) errs.push("Use 3-letter airport or city codes, like JFK or LIS.");
-    else if (origin === destination) errs.push("Origin and destination must be different.");
-    if (!start) errs.push("Pick the first day of your travel window.");
-    if (trip === "round_trip") {
-      if (!(nmin >= 1) || !(nmax >= 1)) errs.push("Nights must be 1 or more.");
-      else if (nmin > nmax) errs.push("Minimum nights can't be more than maximum nights.");
-      else if (nmin >= days) errs.push(`A ${nmin}-night stay doesn't fit in a ${days}-day window. Use fewer nights or a longer window.`);
-    }
-    return { origin, destination, start, days, nmin, nmax, stops, adults: +$("adults").value,
-             currency: $("currency").value, cabin: $("cabin").value, errs };
+    return {
+      from: $("from").value.trim().toUpperCase(),
+      to: $("to").value.trim().toUpperCase(),
+      start: $("start").value,
+      days: +$("days").value,
+      trip,
+      nights: parseInt($("nights").value, 10),
+      stops: $("stops").value,
+      adults: +$("adults").value,
+      currency: "USD",
+    };
   }
 
-  function combos(q) {
-    const s = parse(q.start), end = addDays(s, q.days - 1), first = s < today ? today : s;
-    const out = [];
-    for (let d = new Date(first); d <= end; d = addDays(d, 1)) {
-      if (trip === "one_way") { out.push([new Date(d), null]); continue; }
-      for (let n = q.nmin; n <= q.nmax; n++) {
-        const r = addDays(d, n);
-        if (r <= end) out.push([new Date(d), r]);
-      }
+  function check(q) {
+    if (!/^[A-Z]{3}$/.test(q.from) || !/^[A-Z]{3}$/.test(q.to)) return "Enter 3-letter airport codes, like JFK or LIS.";
+    if (q.from === q.to) return "From and To must be different.";
+    if (!q.start) return "Pick the first day of your travel window.";
+    if (parse(q.start) < today) return "Pick a start date from today onwards.";
+    if (q.trip === "round_trip" && !(q.nights >= 1 && q.nights < q.days)) return `Nights must be between 1 and ${q.days - 1} for a ${q.days}-day window.`;
+    return "";
+  }
+
+  function combinations(q) {
+    const first = parse(q.start), end = addDays(first, q.days - 1), out = [];
+    for (let d = first; d <= end; d = addDays(d, 1)) {
+      if (q.trip === "one_way") out.push([iso(d), null]);
+      else if (addDays(d, q.nights) <= end) out.push([iso(d), iso(addDays(d, q.nights))]);
     }
     return out;
   }
 
-  function sampleFares(q, depart, ret) {
-    const route = hash(q.origin + q.destination);
-    const base = 140 + (route % 520);
-    const r = rng(hash(`${q.origin}${q.destination}${iso(depart)}${ret ? iso(ret) : ""}${q.cabin}`));
-    const dow = depart.getDay();
-    const dayX = dow === 5 || dow === 0 ? 1.18 : dow === 2 || dow === 3 ? 0.88 : 1;
-    const opts = [];
-    const count = 3 + Math.floor(r() * 4);
-    for (let i = 0; i < count; i++) {
-      const stops = [0, 0, 1, 1, 1, 2][Math.floor(r() * 6)];
-      if (q.stops !== null && stops > q.stops) continue;
-      const airline = AIRLINES[Math.floor(r() * AIRLINES.length)];
-      let p = base * (ret ? 1.75 : 1) * dayX * (0.8 + r() * 0.75) * (1 - 0.13 * stops);
-      p = p * CABIN_X[q.cabin] * CUR_X[q.currency] * q.adults;
-      const dur = Math.round((base / 2.2 + 60) + stops * (85 + r() * 140));
-      const num = `${airline.slice(0, 2).toUpperCase()} ${100 + Math.floor(r() * 899)}`;
-      opts.push({ depart, ret, price: Math.round(p), airline, stops, dur, num, url: null, prev: null });
-    }
-    return opts;
-  }
-
-  // ---------- one shape for both live and sample results ----------
-  // model = { origin, destination, currency, adults, cabin, best, perDate, top, checked,
-  //           isLive, prevBest, lowestSeen, history: [{date, price}], errors: [] }
-  function fromLive(s) {
-    const opt = (o) => o && ({
-      depart: parse(o.depart_date), ret: o.return_date ? parse(o.return_date) : null,
-      price: o.price, airline: (o.airlines || []).join(", ") || "–", stops: o.stops ?? 0,
-      dur: o.duration_minutes, num: (o.flight_numbers || []).join(" · ") || "–",
-      url: safeUrl(o.booking_url), prev: o.previous_price ?? null,
-    });
-    const perDate = (s.by_date || []).map(opt);
-    const best = perDate.reduce((m, o) => (!m || o.price < m.price ? o : m), null);
-    if (best && s.best) Object.assign(best, { num: opt(s.best).num, url: opt(s.best).url || best.url });
-    return {
-      origin: s.origin, destination: s.destination, currency: s.currency, adults: s.adults, cabin: s.cabin,
-      best, perDate, top: (s.top || []).map(opt), checked: s.requests_made, isLive: true,
-      prevBest: s.previous_best, lowestSeen: s.lowest_seen,
-      history: (s.best_price_history || []).map((r) => ({ date: parse(r.date), price: r.best_price })),
-      errors: s.errors || [],
-    };
-  }
-
-  function fromSample(q, all, checked) {
-    const byKey = new Map();
-    for (const o of all) {
-      const k = iso(o.depart) + (o.ret ? iso(o.ret) : "");
-      if (!byKey.has(k) || o.price < byKey.get(k).price) byKey.set(k, o);
-    }
-    const perDate = [...byKey.keys()].sort().map((k) => byKey.get(k));
-    return {
-      origin: q.origin, destination: q.destination, currency: q.currency, adults: q.adults, cabin: q.cabin,
-      best: perDate.reduce((m, o) => (!m || o.price < m.price ? o : m), null), perDate,
-      top: [...all].sort((a, b) => a.price - b.price).slice(0, 5), checked, isLive: false,
-      prevBest: null, lowestSeen: null, history: [], errors: [],
-    };
-  }
-
-  // ---------- rendering ----------
-  function renderPass(m) {
-    const best = m.best;
-    if (!best) { $("pass").innerHTML = `<div class="card empty">No fares found for these dates and filters.</div>`; return; }
-    let note = "";
-    if (m.isLive) {
-      const bits = [];
-      if (m.prevBest != null) bits.push(deltaHtml(best.price, m.prevBest, m.currency, " since last check"));
-      else bits.push(`<span class="delta new">First check</span>`);
-      if (m.lowestSeen != null && best.price < m.lowestSeen) bits.push(`<span class="delta down">Lowest price so far</span>`);
-      else if (m.lowestSeen != null) bits.push(`<span>Lowest seen: <b>${money(m.lowestSeen, m.currency)}</b></span>`);
-      note = `<div class="pass-note">${bits.join("")}</div>`;
-    }
-    const book = best.url ? `<a class="book" href="${esc(best.url)}" target="_blank" rel="noopener">View fares ↗</a>` : "";
-    $("pass").innerHTML = `
-      <article class="pass" aria-label="Best fare">
-        <div class="pass-main">
-          <div class="pass-top"><span class="carrier">${esc(best.airline)}</span><span class="badge">Lowest fare</span></div>
-          <div class="codes">
-            <div class="code">${esc(m.origin)}<small>DEPART</small></div>
-            <div class="flightpath" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" transform="rotate(90 12 12)"/></svg></div>
-            <div class="code" style="text-align:right">${esc(m.destination)}<small>ARRIVE</small></div>
-          </div>
-          <div class="facts">
-            <div class="fact"><div class="label">Out</div><div class="v">${fmt(best.depart)}</div></div>
-            <div class="fact"><div class="label">Back</div><div class="v">${best.ret ? fmt(best.ret) : "One-way"}</div></div>
-            <div class="fact"><div class="label">Stay</div><div class="v">${best.ret ? nights(best) + " nights" : "–"}</div></div>
-            <div class="fact"><div class="label">Flight</div><div class="v">${esc(best.num)}</div></div>
-            <div class="fact"><div class="label">Stops</div><div class="v">${stopsTxt(best.stops)}</div></div>
-            <div class="fact"><div class="label">Time</div><div class="v">${durTxt(best.dur)}</div></div>
-          </div>
-          ${note}
-        </div>
-        <div class="pass-stub">
-          <div>
-            <div class="price-cur">${esc(m.currency)} · ${m.adults} ADULT${m.adults > 1 ? "S" : ""}</div>
-            <div class="price-big">${money(best.price, m.currency)}</div>
-          </div>
-          ${book || `<div class="price-cur">${esc(m.cabin.replace("_", " ").toUpperCase())}</div>`}
-          <div class="barcode" aria-hidden="true"></div>
-        </div>
-      </article>`;
-  }
-
-  function niceStep(raw) {
-    const p = Math.pow(10, Math.floor(Math.log10(raw)));
-    return [1, 2, 2.5, 5, 10].map((x) => x * p).find((s) => s >= raw);
-  }
-
-  function renderTrend(m) {
-    const h = m.history;
-    $("trend-sec").hidden = !(m.isLive && h.length >= 2);
-    if ($("trend-sec").hidden) return;
-    const W = 320, H = 120, L = 44, R = 10, T = 10, B = 22;
-    const prices = h.map((r) => r.price);
-    const step = niceStep((Math.max(...prices) - Math.min(...prices) || Math.max(...prices) * 0.1) / 3);
-    const lo = Math.floor(Math.min(...prices) / step) * step;
-    const hi = Math.max(lo + step, Math.ceil(Math.max(...prices) / step) * step);
-    const x = (i) => L + (h.length === 1 ? 0 : (i / (h.length - 1)) * (W - L - R));
-    const y = (p) => T + (1 - (p - lo) / (hi - lo)) * (H - T - B);
-    const pts = h.map((r, i) => `${x(i).toFixed(1)},${y(r.price).toFixed(1)}`);
-    const ticks = []; for (let v = lo; v <= hi + 1e-9; v += step) ticks.push(v);
-    const minI = prices.indexOf(Math.min(...prices)), lastI = h.length - 1;
-    $("trend").innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Best price on each of the last ${h.length} checks">
-        ${ticks.map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${money(v, m.currency)}</text>`).join("")}
-        <polygon class="area" points="${L},${H - B} ${pts.join(" ")} ${x(lastI)},${H - B}"/>
-        <polyline class="line" points="${pts.join(" ")}"/>
-        ${minI !== lastI ? `<circle class="low" cx="${x(minI)}" cy="${y(prices[minI])}" r="3.5"/>` : ""}
-        <circle class="end" cx="${x(lastI)}" cy="${y(prices[lastI])}" r="5"/>
-        <text x="${L}" y="${H - 6}">${fmtShort(h[0].date)}</text>
-        <text x="${W - R}" y="${H - 6}" text-anchor="end">${fmtShort(h[lastI].date)}</text>
-      </svg>`;
-    $("trend-hint").textContent = `${h.length} checks`;
-  }
-
-  function renderChart(m) {
-    const perDate = m.perDate;
-    if (!perDate.length) { $("chart").innerHTML = `<p class="empty">No fares to chart.</p>`; return; }
-    const top = Math.max(...perDate.map((o) => o.price));
-    const step = niceStep(top / 4), n = Math.ceil(top / step), max = n * step;
-    const ticks = Array.from({ length: n + 1 }, (_, i) => money(max - i * step, m.currency));
-    const bars = perDate.map((o, i) => {
-      const label = `${datesTxt(o)}: ${money(o.price, m.currency)}`;
-      return `<button type="button" class="bar${o === m.best ? " is-best" : ""}" style="height:${(o.price / max) * 100}%" data-i="${i}" aria-pressed="false" aria-label="${esc(label)}"></button>`;
-    }).join("");
-    const labels = perDate.map((o) => `<span>${o.depart.getDate()}<br>${o.depart.toLocaleDateString("en-US", { month: "short" })}</span>`).join("");
-    $("chart").innerHTML = `
-      <div class="chart">
-        <div class="yaxis" aria-hidden="true">${ticks.map((t) => `<span>${t}</span>`).join("")}</div>
-        <div class="plot-scroll"><div class="plot" id="plot" style="background-size:100% calc(100% / ${n})">${bars}</div><div class="xlabels" aria-hidden="true">${labels}</div></div>
-      </div>
-      <div class="picked" id="picked" aria-live="polite"></div>`;
-    const pick = (i) => {
-      document.querySelectorAll(".bar").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.i === i)));
-      const o = perDate[i];
-      $("picked").innerHTML = `<span><b>${datesTxt(o)}</b><br><span class="hint">${esc(o.airline)} · ${stopsTxt(o.stops)} · ${durTxt(o.dur)}</span></span>
-        <span style="text-align:right"><span class="p">${money(o.price, m.currency)}</span><br>${m.isLive ? (o.prev != null ? deltaHtml(o.price, o.prev, m.currency) : `<span class="delta new">new</span>`) : ""}</span>`;
-    };
-    $("plot").addEventListener("click", (e) => { const b = e.target.closest(".bar"); if (b) pick(+b.dataset.i); });
-    pick(Math.max(0, perDate.indexOf(m.best)));
-  }
-
-  function renderBoard(m) {
-    $("board").innerHTML = m.top.length ? m.top.map((o, i) => `
-      <li>
-        <span class="rank">${i + 1}</span>
-        <div style="min-width:0">
-          <div class="dates">${datesTxt(o)}${o.ret ? `<span class="chip">${nights(o)}n</span>` : ""}</div>
-          <div class="meta">${esc(o.airline)} · ${durTxt(o.dur)} <span class="chip${o.stops === 0 ? " ns" : ""}">${stopsTxt(o.stops)}</span></div>
-        </div>
-        <span class="amt-wrap"><span class="amt">${money(o.price, m.currency)}</span>${o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">View ↗</a>` : ""}</span>
-      </li>`).join("") : `<li class="empty" style="display:block">Nothing found.</li>`;
-    const w = $("warnings");
-    w.hidden = !m.errors.length;
-    if (m.errors.length) {
-      w.querySelector("summary").textContent = `${m.errors.length} date${m.errors.length > 1 ? "s" : ""} couldn't be checked`;
-      w.querySelector("ul").innerHTML = m.errors.map((e) => `<li>${esc(e)}</li>`).join("");
-    }
-  }
-
-  function render(m) {
-    $("searched").textContent = `${m.checked} date combination${m.checked === 1 ? "" : "s"} checked`;
-    renderPass(m); renderTrend(m); renderChart(m); renderBoard(m);
-  }
-
-  // ---------- banner ----------
-  const infoIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8h.01M11 12h1v4h1"/></svg>`;
-  function banner(kind) {
-    const b = $("banner");
-    if (kind === "live") {
-      const t = new Date(live.generated_at);
-      const hours = (Date.now() - t) / 36e5;
-      const when = t.toLocaleString("en-US", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-      const src = live.provider === "serpapi" ? "Google Flights" : live.provider === "duffel" ? "Duffel" : live.provider;
-      const stale = hours > 36;
-      b.className = `notice ${stale ? "stale" : "live"}`;
-      b.innerHTML = `<div class="notice-row">${stale ? infoIcon : `<span class="dot" aria-hidden="true"></span>`}
-        <span class="notice-text"><b>${stale ? "Last updated" : "Live fares"}</b> · checked ${esc(when)} from ${esc(src)}.
-        ${stale ? "The daily search hasn't run since then. Check it in GitHub Actions." : "Updated once a day with the email."}</span></div>`;
-    } else if (kind === "preview") {
-      b.className = "notice";
-      b.innerHTML = `<div class="notice-row">${infoIcon}<span class="notice-text"><b>Sample prices</b> for the route you're planning. Real fares appear once it's in the daily search.</span>
-        <button class="ghost" type="button" id="back-live">Back to live fares</button></div>`;
-      $("back-live").addEventListener("click", showLive);
-    } else {
-      b.className = "notice";
-      b.innerHTML = `<div class="notice-row">${infoIcon}<span class="notice-text"><b>These are sample prices.</b> Live fares show here after the daily search runs and publishes this page on GitHub Pages.</span></div>`;
-    }
-  }
-
-  // ---------- planner (sample search + config) ----------
-  function yaml(q) {
-    const lines = [
-      `  - name: ${q.origin} to ${q.destination}`,
-      `    origin: ${q.origin}`,
-      `    destination: ${q.destination}`,
-      `    window_start: ${q.start}`,
-      `    window_days: ${q.days}`,
-      `    trip_type: ${trip}`,
-    ];
-    if (trip === "round_trip") lines.push(q.nmin === q.nmax ? `    nights: ${q.nmin}` : `    nights: {min: ${q.nmin}, max: ${q.nmax}}`);
-    lines.push(`    adults: ${q.adults}`, `    cabin: ${q.cabin}`, `    currency: ${q.currency}`);
-    if (q.stops !== null) lines.push(`    max_stops: ${q.stops}`);
-    lines.push("    top_n: 5");
-    return lines.join("\n");
-  }
-
   function updatePlan() {
     const q = readForm();
-    if (q.errs.length) { $("plan-line").textContent = ""; return; }
-    const n = combos(q).length;
-    $("plan-line").textContent = `${n} date combination${n === 1 ? "" : "s"} · ${fmtShort(parse(q.start))} – ${fmtShort(addDays(parse(q.start), q.days - 1))}`;
-    $("stats").innerHTML = `
-      <div class="stat"><div class="n">${n}</div><div class="t">searches per day</div></div>
-      <div class="stat"><div class="n">${(n * 30).toLocaleString("en-US")}</div><div class="t">per month</div></div>
-      <div class="stat"><div class="n">1</div><div class="t">email per day</div></div>`;
-    $("yaml").textContent = yaml(q);
+    const n = check(q) ? 0 : combinations(q).length;
+    $("plan").textContent = n ? `Checks ${n} date combination${n > 1 ? "s" : ""} in your window.` : "";
   }
 
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  async function sampleSearch(animate) {
-    const q = readForm();
-    $("err").hidden = !q.errs.length;
-    $("err").textContent = q.errs[0] || "";
-    if (q.errs.length) return;
-    const pairs = combos(q);
-    if (!pairs.length) { $("err").hidden = false; $("err").textContent = "That window is already in the past. Pick a later start date."; return; }
-    const go = $("go"), bar = $("progress").firstElementChild;
-    go.disabled = true;
-    const all = [];
-    if (animate && !reduce) $("progress").hidden = false;
-    for (let i = 0; i < pairs.length; i++) {
-      const [d, r] = pairs[i];
-      all.push(...sampleFares(q, d, r));
-      if (animate && !reduce) {
-        $("go-label").textContent = `Checking ${fmtShort(d)}${r ? " → " + fmtShort(r) : ""}`;
-        bar.style.width = `${((i + 1) / pairs.length) * 100}%`;
-        await new Promise((res) => setTimeout(res, Math.max(18, 700 / pairs.length)));
+  // ---------- demo prices, used only where the search server isn't reachable ----------
+  function googleLink(q, depart, ret) {
+    let text = `Flights from ${q.from} to ${q.to} on ${depart}` + (ret ? ` through ${ret}` : " one way");
+    if (q.adults > 1) text += ` for ${q.adults} adults`;
+    if (q.stops === "0") text += " nonstop";
+    return "https://www.google.com/travel/flights?" + new URLSearchParams({ q: text, curr: q.currency, hl: "en" });
+  }
+  function demoResults(q) {
+    let seed = [...(q.from + q.to)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+    const base = 180 + (seed % 500), airlines = ["Skyline Air", "Blue Jet", "Northwind", "Coastal Airways"];
+    const fares = [];
+    for (const [depart, ret] of combinations(q)) {
+      for (let i = 0; i < 3; i++) {
+        const s = [0, 1, 1, 2][Math.floor(rand() * 4)];
+        if (q.stops !== "" && s > +q.stops) continue;
+        fares.push({ depart_date: depart, return_date: ret, nights: ret ? q.nights : null,
+          price: Math.round(base * (ret ? 1.8 : 1) * (0.75 + rand() * 0.6) * (1 - s * 0.1) * q.adults),
+          currency: q.currency, airlines: [airlines[Math.floor(rand() * 4)]], stops: s,
+          duration_minutes: Math.round(240 + rand() * 200 + s * 120), booking_url: googleLink(q, depart, ret) });
       }
     }
-    $("progress").hidden = true; bar.style.width = "0";
-    $("go-label").textContent = "Preview sample fares";
-    go.disabled = false;
-    if (live) { $("tabs").hidden = true; banner("preview"); }
-    else banner("sample");
-    $("foot-note").textContent = "Airline names in sample prices are made up.";
-    render(fromSample(q, all, pairs.length));
-    if (animate) $("results").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    try { localStorage.setItem("farewatch", JSON.stringify({ ...q, trip, errs: undefined })); } catch (e) {}
+    const avg = fares.reduce((t, f) => t + f.price, 0) / (fares.length || 1);
+    fares.forEach((f) => (f.vs_average = f.price <= avg ? "below" : "above"));
+    fares.sort((a, b) => a.price - b.price);
+    return { origin: q.from, destination: q.to, currency: q.currency, searched: combinations(q).length,
+      average: avg, average_source: "found", fares: fares.slice(0, 10), demo: true };
   }
 
-  // ---------- live mode ----------
-  function renderTabs() {
-    const t = $("tabs");
-    t.hidden = live.searches.length < 2;
-    t.innerHTML = live.searches.map((s, i) => `
-      <button class="tab" role="tab" type="button" data-i="${i}" aria-selected="${i === routeIdx}">
-        <span class="tc">${esc(s.origin)}–${esc(s.destination)}</span>${esc(s.name)}</button>`).join("");
-  }
-  $("tabs").addEventListener("click", (e) => {
-    const b = e.target.closest(".tab"); if (!b) return;
-    routeIdx = +b.dataset.i; renderTabs(); render(fromLive(live.searches[routeIdx]));
-    try { localStorage.setItem("farewatch-route", String(routeIdx)); } catch (e) {}
-  });
+  // ---------- results ----------
+  function render(data) {
+    $("results").hidden = false;
+    $("results-title").innerHTML = `<span class="codes">${esc(data.origin)} → ${esc(data.destination)}</span>`;
+    $("avg").innerHTML = data.average != null
+      ? `${data.average_source === "typical" ? "Typical price" : "Average"} for this route: <b>${money(data.average, data.currency)}</b>`
+      : "";
+    const notes = [];
+    if (data.demo) notes.push("Demo prices: the search server isn't connected on this copy of the page. The Google Flights links are real.");
+    if (data.skipped) notes.push(`Only the first ${data.searched} date combinations were checked.`);
+    $("notice").hidden = !notes.length;
+    $("notice").textContent = notes.join(" ");
 
-  function showLive() {
-    banner("live");
-    renderTabs();
-    $("foot-note").textContent = "Prices are for all passengers and can change before you book.";
-    render(fromLive(live.searches[routeIdx]));
+    $("fares").innerHTML = data.fares.length ? data.fares.map((f) => {
+      const dates = f.return_date ? `${day(f.depart_date)} → ${day(f.return_date)}` : day(f.depart_date);
+      const meta = [f.nights ? `${f.nights} nights` : "One-way", (f.airlines || []).join(", "), stops(f.stops), dur(f.duration_minutes)]
+        .filter(Boolean).map(esc).join(" · ");
+      const sign = f.vs_average === "below" ? `<span class="sign below">Below average</span>`
+        : f.vs_average === "above" ? `<span class="sign above">Above average</span>` : "";
+      const url = /^https:\/\//.test(f.booking_url || "") ? f.booking_url : googleLink(readForm(), f.depart_date, f.return_date);
+      return `<li class="fare">
+        <div><div class="fare-dates">${dates}</div><div class="fare-meta">${meta}</div></div>
+        <div class="fare-price">${sign}
+          <a class="price" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Book for ${money(f.price, f.currency)} on Google Flights">${money(f.price, f.currency)}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+        </div>
+      </li>`;
+    }).join("") : `<li class="empty">No flights found for these dates. Try another window or allow more stops.</li>`;
   }
 
-  // ---------- controls ----------
+  async function search(e) {
+    e?.preventDefault();
+    const q = readForm(), problem = check(q);
+    $("error").hidden = !problem; $("error").textContent = problem;
+    if (problem) return;
+    try { localStorage.setItem("farewatch", JSON.stringify(q)); } catch (err) {}
+
+    const n = combinations(q).length;
+    $("go").disabled = true; $("go").textContent = `Searching ${n} date combination${n > 1 ? "s" : ""}…`;
+    const params = new URLSearchParams({ from: q.from, to: q.to, start: q.start, days: q.days, trip: q.trip,
+      nights: q.nights, stops: q.stops, adults: q.adults, currency: q.currency });
+    let data = null, failure = "";
+    try {
+      const res = await fetch(`api/search?${params}`, { headers: { Accept: "application/json" } });
+      const isJson = (res.headers.get("content-type") || "").includes("json");
+      if (!isJson) data = demoResults(q);                 // no search server behind this page
+      else {
+        const body = await res.json();
+        if (res.ok) data = body; else failure = body.error || "The search failed. Try again.";
+      }
+    } catch (err) {
+      data = demoResults(q);
+    }
+    $("go").disabled = false; $("go").textContent = "Search flights";
+    if (failure) { $("error").hidden = false; $("error").textContent = failure; return; }
+    render(data);
+    $("results").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
   function setTrip(t) {
     trip = t;
-    $("trip-rt").setAttribute("aria-pressed", String(t === "round_trip"));
-    $("trip-ow").setAttribute("aria-pressed", String(t === "one_way"));
-    $("nmin").disabled = $("nmax").disabled = t === "one_way";
+    $("rt").setAttribute("aria-pressed", String(t === "round_trip"));
+    $("ow").setAttribute("aria-pressed", String(t === "one_way"));
+    $("nights-field").hidden = t === "one_way";
     updatePlan();
   }
-  $("trip-rt").addEventListener("click", () => setTrip("round_trip"));
-  $("trip-ow").addEventListener("click", () => setTrip("one_way"));
-  $("swap").addEventListener("click", () => {
-    const a = $("origin").value; $("origin").value = $("destination").value; $("destination").value = a; updatePlan();
-  });
-  ["origin", "destination"].forEach((id) => $(id).addEventListener("input", (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ""); updatePlan(); }));
-  ["start", "days", "nmin", "nmax", "stops", "adults", "currency", "cabin"].forEach((id) => $(id).addEventListener("change", updatePlan));
-  $("form").addEventListener("submit", (e) => { e.preventDefault(); sampleSearch(true); });
-  $("copy").addEventListener("click", async () => {
-    const btn = $("copy");
-    try { await navigator.clipboard.writeText($("yaml").textContent); btn.textContent = "Copied"; }
-    catch (e) {
-      const range = document.createRange(); range.selectNodeContents($("yaml"));
-      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      btn.textContent = "Selected. Copy it now";
-    }
-    setTimeout(() => (btn.textContent = "Copy config"), 2200);
-  });
+  $("rt").addEventListener("click", () => setTrip("round_trip"));
+  $("ow").addEventListener("click", () => setTrip("one_way"));
+  $("swap").addEventListener("click", () => { [$("from").value, $("to").value] = [$("to").value, $("from").value]; });
+  ["from", "to"].forEach((id) => $(id).addEventListener("input", (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ""); updatePlan(); }));
+  ["start", "days", "nights"].forEach((id) => $(id).addEventListener("change", updatePlan));
+  $("form").addEventListener("submit", search);
 
   try {
     const s = JSON.parse(localStorage.getItem("farewatch") || "null");
-    if (s && s.start && parse(s.start) >= today) {
-      $("origin").value = s.origin; $("destination").value = s.destination; $("start").value = s.start;
-      $("days").value = s.days; $("nmin").value = s.nmin; $("nmax").value = s.nmax;
-      $("stops").value = s.stops === null ? "" : s.stops; $("adults").value = s.adults;
-      $("currency").value = s.currency; $("cabin").value = s.cabin;
-      if (s.trip) setTrip(s.trip);
+    if (s && s.from && s.start && parse(s.start) >= today) {
+      $("from").value = s.from; $("to").value = s.to; $("start").value = s.start; $("days").value = s.days;
+      $("nights").value = s.nights || 7; $("stops").value = s.stops ?? ""; $("adults").value = s.adults || 1;
+      setTrip(s.trip || "round_trip");
     }
-  } catch (e) {}
+  } catch (err) {}
   updatePlan();
-
-  // Start: try the live results the daily job publishes next to this page; fall back to samples.
-  async function boot() {
-    try {
-      const res = await fetch(DATA_URL, { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.searches) && data.searches.length) live = data;
-      }
-    } catch (e) { /* not published yet, or opened somewhere without the data file */ }
-    if (live) {
-      try { routeIdx = Math.min(+(localStorage.getItem("farewatch-route") || 0) || 0, live.searches.length - 1); } catch (e) {}
-      $("plan-h").textContent = "Plan another route";
-      $("lede").textContent = "The cheapest fares in your travel window, checked every day. Same results as your daily email.";
-      showLive();
-    } else {
-      sampleSearch(false);
-    }
-  }
-  boot();
 })();
 </script>
 </body>

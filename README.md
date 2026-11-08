@@ -14,7 +14,7 @@ For each route you configure, it:
    - a **price-per-date calendar** with ▲/▼ changes since the last run.
 
 It runs for free on a schedule in **GitHub Actions**, so nothing has to stay running on your computer.
-The same results are also published to a phone-friendly web page, **Fare Watch** (see below).
+There's also a phone-friendly website, **Fare Watch**, for searching on demand (see below).
 
 ## Quick start (local)
 
@@ -92,23 +92,35 @@ Price history is kept in the Actions cache, so the email can show what changed s
 previous day. GitHub pauses scheduled workflows in repos with no activity for 60 days. If the
 emails stop, re-enable the workflow from the Actions tab.
 
-## 5. The web page (Fare Watch)
+## 5. The search website (Fare Watch)
 
-`web/index.html` is a mobile-friendly page that shows the same results as the email:
-best fare, best price by day, a price calendar with changes since the last check, and the
-cheapest 5, with a tab for each route. It also has a planner that previews any route with sample
-prices and generates the `config.yaml` entry for it.
+A simple mobile-friendly page where you search on demand: enter From, To, the window,
+nights, stops and adults, and it lists the 10 cheapest fares in the window.
 
-The daily workflow publishes it to GitHub Pages with that day's results in `data/latest.json`.
-To turn it on, open **Settings → Pages** and set **Source** to **GitHub Actions**. After the next run
-the page is at `https://<your-user>.github.io/Airline-Searcher/`. Add it to your phone's home
-screen to open it like an app.
+- **Tap a price** to open Google Flights with the same route, dates and passengers, ready to book.
+- **The sign above each price** is green ("Below average") when the fare is at or under the usual
+  price for that route, and red ("Above average") when it's over. The usual price is Google Flights'
+  typical price range for the route (the middle of it). When Google doesn't report one, it's the
+  average of all fares found in the search.
 
-- The page updates once a day, when the email is sent. To refresh it sooner, run the workflow by hand.
-- The API key never reaches the page. Prices are fetched by the GitHub Action, and the page only
-  reads the results file.
-- GitHub Pages sites are public, so anyone with the link can see your routes and prices.
-- Opened without the results file (locally, or before the first run) the page shows sample prices.
+The page (`web/index.html`) needs a small server that keeps your API key secret
+(`api/search.py`). It's set up for [Vercel](https://vercel.com), which is free for personal use:
+
+1. Sign in at [vercel.com/new](https://vercel.com/new) with GitHub and **import** this repository.
+2. Under **Environment Variables** add `SERPAPI_API_KEY`.
+3. Click **Deploy**. Your site is at `https://<project-name>.vercel.app`. On your phone,
+   use "Add to Home Screen" to open it like an app.
+
+Each search uses one API search per date combination (7 for a 2-week window with 7 nights,
+14 one-way). The site checks at most 14 per search; change that with the `MAX_WEB_COMBINATIONS`
+environment variable. Anyone who has your site's link can search with your quota.
+
+Run it on your own computer instead:
+
+```bash
+SERPAPI_API_KEY=... python -m airline_searcher.web      # http://localhost:8000
+SEARCH_PROVIDER=mock python -m airline_searcher.web     # fake prices, no key needed
+```
 
 ## Running it yourself instead (cron)
 
@@ -130,7 +142,6 @@ python -m airline_searcher -c config.yaml
 --plan               list the date combinations without searching
 --no-email           print the report instead of emailing it
 --save-html FILE     also save the HTML email
---save-json FILE     also save the results as JSON (what the web page reads)
 --no-history         don't read or update price history
 -v, --verbose        log each API call
 ```

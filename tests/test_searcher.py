@@ -64,7 +64,7 @@ def test_run_search_ranks_filters_and_caps_requests():
     s = make_config(nights={"min": 3, "max": 7}, max_stops=0).searches[0]
     result = run_search(s, MockProvider(), TODAY, max_requests=10)
     assert result.requests_made == 10
-    assert any("max_requests_per_search" in e for e in result.errors)
+    assert any("limit is 10" in e for e in result.errors)
     prices = [o.price for o in result.top]
     assert prices == sorted(prices) and len(prices) <= s.top_n
     assert all(o.stops == 0 for o in result.options)
@@ -106,6 +106,7 @@ def test_serpapi_params_and_parse():
     assert params["type"] == 1 and params["return_date"] == "2027-01-17" and params["stops"] == 2
     payload = {
         "search_metadata": {"google_flights_url": "https://www.google.com/travel/flights?x"},
+        "price_insights": {"typical_price_range": [500, 700]},
         "best_flights": [{"price": 612, "total_duration": 445, "flights": [
             {"airline": "TAP Air Portugal", "flight_number": "TP 210",
              "departure_airport": {"id": "JFK", "time": "2027-01-10 19:00"},
@@ -117,6 +118,7 @@ def test_serpapi_params_and_parse():
     assert [o.price for o in opts] == [612, 540]
     assert opts[0].airlines == ["TAP Air Portugal"] and opts[0].stops == 0
     assert opts[1].stops == 1
+    assert (opts[0].typical_low, opts[0].typical_high) == (500, 700)
     assert opts[0].booking_url.startswith("https://www.google.com/travel")
 
 
@@ -147,19 +149,48 @@ def test_email_message():
     assert msg.is_multipart()
 
 
-def test_json_export_matches_email_data(tmp_path):
-    from airline_searcher.export import build_payload, write_json
+
+def test_google_flights_link_has_search_details():
+    from urllib.parse import parse_qs, urlparse
+    from airline_searcher.links import google_flights_link
+    req = SearchRequest("JFK", "LIS", date(2027, 1, 10), date(2027, 1, 17), adults=2, max_stops=0)
+    q = parse_qs(urlparse(google_flights_link(req)).query)["q"][0]
+    assert q == "Flights from JFK to LIS on 2027-01-10 through 2027-01-17 for 2 adults nonstop"
+
+
+def test_web_search_api(monkeypatch):
+    from airline_searcher.web import search_api
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    status, body = search_api({"from": "jfk", "to": "LIS", "start": "2027-01-10", "days": "14",
+                               "nights": "7", "stops": "1", "adults": "2"}, today=TODAY)
+    assert status == 200 and body["searched"] == 7
+    prices = [f["price"] for f in body["fares"]]
+    assert prices == sorted(prices) and 0 < len(prices) <= 10
+    for f in body["fares"]:
+        assert f["vs_average"] == ("below" if f["price"] <= body["average"] else "above")
+        assert f["booking_url"].startswith("https://www.google.com/travel/flights?")
+        assert f["stops"] <= 1
+
+
+def test_web_search_api_rejects_bad_input(monkeypatch):
+    from airline_searcher.web import search_api
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    assert search_api({"from": "JFKX", "to": "LIS", "start": "2027-01-10"}, today=TODAY)[0] == 400
+    assert search_api({"from": "JFK", "to": "LIS", "start": "2026-01-01", "days": "7"}, today=TODAY)[0] == 400
+
+
+def test_web_search_api_without_key(monkeypatch):
+    from airline_searcher.web import search_api
+    monkeypatch.delenv("SEARCH_PROVIDER", raising=False)
+    monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
+    status, body = search_api({"from": "JFK", "to": "LIS", "start": "2027-01-10"}, today=TODAY)
+    assert status == 503 and "SERPAPI_API_KEY" in body["error"]
+
+
+def test_route_average_prefers_google_typical_range():
+    from airline_searcher.web import route_average
     s = make_config().searches[0]
     result = run_search(s, MockProvider(), TODAY)
-    history = History(tmp_path / "h.json")
-    history.record(result, date(2026, 11, 7))  # pretend yesterday's run
-    payload = build_payload([result], history, "mock", TODAY)
-    write_json(payload, tmp_path / "out" / "latest.json")
-    entry = payload["searches"][0]
-    assert entry["best"]["price"] == result.best.price
-    assert [o["price"] for o in entry["top"]] == [o.price for o in result.top]
-    assert len(entry["by_date"]) == len(result.cheapest_by_dates())
-    assert entry["previous_best"] == result.best.price
-    assert all("previous_price" in o for o in entry["by_date"])
-    assert [r["date"] for r in entry["best_price_history"]] == ["2026-11-07", "2026-11-08"]
-    assert (tmp_path / "out" / "latest.json").exists()
+    for o in result.options:
+        o.typical_low, o.typical_high = 500, 700
+    assert route_average(result) == (600, "typical")

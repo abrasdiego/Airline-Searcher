@@ -31,6 +31,9 @@ class FlightOption:
     duration_minutes: Optional[int] = None
     legs: list[Leg] = field(default_factory=list)
     booking_url: Optional[str] = None
+    # Typical price range for this route and dates, when the provider reports one (Google Flights does)
+    typical_low: Optional[float] = None
+    typical_high: Optional[float] = None
 
     @property
     def date_key(self) -> str:

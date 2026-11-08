@@ -72,6 +72,8 @@ class SerpApiProvider(FlightProvider):
 
     def parse(self, payload: dict, req: SearchRequest) -> list[FlightOption]:
         booking_url = (payload.get("search_metadata") or {}).get("google_flights_url")
+        typical = (payload.get("price_insights") or {}).get("typical_price_range") or [None, None]
+        typical_low, typical_high = (typical + [None, None])[:2]
         options: list[FlightOption] = []
         for group in ("best_flights", "other_flights"):
             for item in payload.get(group) or []:
@@ -104,6 +106,8 @@ class SerpApiProvider(FlightProvider):
                         duration_minutes=item.get("total_duration"),
                         legs=legs,
                         booking_url=booking_url,
+                        typical_low=typical_low,
+                        typical_high=typical_high,
                     )
                 )
         return options

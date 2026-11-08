@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Optional
 
 from airline_searcher.config import SearchConfig
+from airline_searcher.links import google_flights_link
 from airline_searcher.models import FlightOption, SearchRequest
 from airline_searcher.providers.base import FlightProvider, ProviderError
 
@@ -66,31 +68,49 @@ def _keep(opt: FlightOption, cfg: SearchConfig) -> bool:
 
 
 def run_search(cfg: SearchConfig, provider: FlightProvider, today: Optional[date] = None,
-               max_requests: int = 60) -> SearchResult:
+               max_requests: int = 60, workers: int = 1) -> SearchResult:
+    """Search every date combination. workers > 1 runs that many requests at once."""
     today = today or date.today()
     pairs = date_combinations(cfg, today)
     result = SearchResult(config=cfg, combinations_total=len(pairs))
     if len(pairs) > max_requests:
         result.errors.append(
-            f"Window has {len(pairs)} date combinations but max_requests_per_search is "
-            f"{max_requests}; only the first {max_requests} were searched."
+            f"Window has {len(pairs)} date combinations but the limit is {max_requests}; "
+            f"only the first {max_requests} were searched."
         )
         pairs = pairs[:max_requests]
 
-    for depart, ret in pairs:
-        request = SearchRequest(
+    requests = [
+        SearchRequest(
             origin=cfg.origin, destination=cfg.destination, depart_date=depart,
             return_date=ret, adults=cfg.adults, cabin=cfg.cabin, currency=cfg.currency,
             max_stops=cfg.max_stops,
         )
-        result.requests_made += 1
+        for depart, ret in pairs
+    ]
+
+    def one(request: SearchRequest):
         try:
-            found = provider.search(request)
+            return request, provider.search(request), None
         except ProviderError as exc:
-            label = f"{depart}" + (f" → {ret}" if ret else "")
+            return request, [], exc
+
+    if workers > 1 and len(requests) > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            outcomes = list(pool.map(one, requests))
+    else:
+        outcomes = [one(r) for r in requests]
+
+    for request, found, exc in outcomes:
+        result.requests_made += 1
+        label = f"{request.depart_date}" + (f" → {request.return_date}" if request.return_date else "")
+        if exc is not None:
             log.warning("%s %s: %s", cfg.name, label, exc)
             result.errors.append(f"{label}: {exc}")
             continue
+        for opt in found:
+            if not opt.booking_url:
+                opt.booking_url = google_flights_link(request)
         result.options.extend(o for o in found if _keep(o, cfg))
-        log.info("%s %s%s: %d options", cfg.name, depart, f" → {ret}" if ret else "", len(found))
+        log.info("%s %s: %d options", cfg.name, label, len(found))
     return result
