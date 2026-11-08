@@ -27,7 +27,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       # Price history survives between runs in the Actions cache, so the email
-      # can show whether prices went up or down since yesterday.
+      # and the web page can show whether prices went up or down since yesterday.
       - name: Restore price history
         uses: actions/cache/restore@v4
         with:
@@ -45,7 +45,11 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: python -m airline_searcher --config config.yaml --save-html report.html -v
+        run: |
+          mkdir -p site/data
+          cp web/index.html site/index.html
+          python -m airline_searcher --config config.yaml \
+            --save-html site/report.html --save-json site/data/latest.json -v
 
       - name: Save price history
         if: always()
@@ -59,6 +63,27 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flight-report
-          path: report.html
+          path: site/report.html
           if-no-files-found: ignore
           retention-days: 14
+
+      # The web page (Fare Watch) reads site/data/latest.json, the same results the email shows.
+      - name: Package web page
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publish-page:
+    needs: search
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

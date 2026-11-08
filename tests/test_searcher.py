@@ -145,3 +145,21 @@ def test_email_message():
     msg = build_message(report, settings)
     assert msg["To"] == "a@example.com, b@example.com"
     assert msg.is_multipart()
+
+
+def test_json_export_matches_email_data(tmp_path):
+    from airline_searcher.export import build_payload, write_json
+    s = make_config().searches[0]
+    result = run_search(s, MockProvider(), TODAY)
+    history = History(tmp_path / "h.json")
+    history.record(result, date(2026, 11, 7))  # pretend yesterday's run
+    payload = build_payload([result], history, "mock", TODAY)
+    write_json(payload, tmp_path / "out" / "latest.json")
+    entry = payload["searches"][0]
+    assert entry["best"]["price"] == result.best.price
+    assert [o["price"] for o in entry["top"]] == [o.price for o in result.top]
+    assert len(entry["by_date"]) == len(result.cheapest_by_dates())
+    assert entry["previous_best"] == result.best.price
+    assert all("previous_price" in o for o in entry["by_date"])
+    assert [r["date"] for r in entry["best_price_history"]] == ["2026-11-07", "2026-11-08"]
+    assert (tmp_path / "out" / "latest.json").exists()

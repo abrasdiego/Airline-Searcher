@@ -10,6 +10,7 @@ from pathlib import Path
 
 from airline_searcher.config import ConfigError, load_config
 from airline_searcher.emailer import EmailConfigError, SmtpSettings, send_report
+from airline_searcher.export import build_payload, write_json
 from airline_searcher.history import History
 from airline_searcher.providers import ProviderError, get_provider
 from airline_searcher.report import build_report
@@ -25,6 +26,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--provider", help="override settings.provider (serpapi, duffel, mock)")
     p.add_argument("--no-email", action="store_true", help="don't send the email")
     p.add_argument("--save-html", metavar="FILE", help="also write the HTML report to FILE")
+    p.add_argument("--save-json", metavar="FILE",
+                   help="also write the results as JSON to FILE (read by the web page)")
     p.add_argument("--plan", action="store_true",
                    help="only print the date combinations that would be searched (no API calls)")
     p.add_argument("--no-history", action="store_true", help="don't read or update price history")
@@ -52,8 +55,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  {depart}" + (f" → {ret}" if ret else ""))
         return 0
 
+    provider_name = args.provider or config.settings.provider
     try:
-        provider = get_provider(args.provider or config.settings.provider)
+        provider = get_provider(provider_name)
     except ProviderError as exc:
         print(f"Provider error: {exc}", file=sys.stderr)
         return 2
@@ -76,6 +80,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.save_html:
         Path(args.save_html).write_text(report.html, encoding="utf-8")
         print(f"\nHTML report written to {args.save_html}")
+    if args.save_json:
+        write_json(build_payload(results, history, provider_name, today), args.save_json)
+        print(f"JSON results written to {args.save_json}")
 
     if smtp:
         send_report(report, smtp)

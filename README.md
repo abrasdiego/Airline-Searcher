@@ -14,6 +14,7 @@ For each route you configure, it:
    - a **price-per-date calendar** with ▲/▼ changes since the last run.
 
 It runs for free on a schedule in **GitHub Actions**, so nothing has to stay running on your computer.
+The same results are also published to a phone-friendly web page, **Fare Watch** (see below).
 
 ## Quick start (local)
 
@@ -91,6 +92,24 @@ Price history is kept in the Actions cache, so the email can show what changed s
 previous day. GitHub pauses scheduled workflows in repos with no activity for 60 days. If the
 emails stop, re-enable the workflow from the Actions tab.
 
+## 5. The web page (Fare Watch)
+
+`web/index.html` is a mobile-friendly page that shows the same results as the email:
+best fare, best price by day, a price calendar with changes since the last check, and the
+cheapest 5, with a tab for each route. It also has a planner that previews any route with sample
+prices and generates the `config.yaml` entry for it.
+
+The daily workflow publishes it to GitHub Pages with that day's results in `data/latest.json`.
+To turn it on, open **Settings → Pages** and set **Source** to **GitHub Actions**. After the next run
+the page is at `https://<your-user>.github.io/Airline-Searcher/`. Add it to your phone's home
+screen to open it like an app.
+
+- The page updates once a day, when the email is sent. To refresh it sooner, run the workflow by hand.
+- The API key never reaches the page. Prices are fetched by the GitHub Action, and the page only
+  reads the results file.
+- GitHub Pages sites are public, so anyone with the link can see your routes and prices.
+- Opened without the results file (locally, or before the first run) the page shows sample prices.
+
 ## Running it yourself instead (cron)
 
 ```bash
@@ -111,6 +130,7 @@ python -m airline_searcher -c config.yaml
 --plan               list the date combinations without searching
 --no-email           print the report instead of emailing it
 --save-html FILE     also save the HTML email
+--save-json FILE     also save the results as JSON (what the web page reads)
 --no-history         don't read or update price history
 -v, --verbose        log each API call
 ```
