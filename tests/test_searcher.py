@@ -222,6 +222,13 @@ def test_health_reports_demo_and_live(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "mock")
     assert health() == {"provider": "mock", "configured": True, "live": False}
     monkeypatch.setenv("SEARCH_PROVIDER", "serpapi")
+    monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
+    monkeypatch.setenv("SERPAPI_KEY", "  k  ")
+    assert health()["live"] is True
+    monkeypatch.setenv("SERPAPI_KEY", "")
+    assert "SERPAPI_KEY" in health()["help"]
+    monkeypatch.delenv("SERPAPI_KEY")
+    monkeypatch.setenv("SEARCH_PROVIDER", "serpapi")
     monkeypatch.setenv("SERPAPI_API_KEY", "k")
     assert health()["live"] is True
 
