@@ -24,6 +24,29 @@ def _stops_param(max_stops: Optional[int]) -> int:
     return max_stops + 1
 
 
+def _normalize(name: str) -> str:
+    return "".join(ch for ch in name.upper() if ch.isalnum())
+
+
+ACCEPTED_NAMES = {"SERPAPIAPIKEY", "SERPAPIKEY", "SERPAPI"}
+
+
+def find_api_key() -> Optional[str]:
+    """SERPAPI_API_KEY, also accepting close variants (SERPAPI_KEY, SERP_API_KEY, stray spaces)."""
+    exact = os.environ.get("SERPAPI_API_KEY", "").strip()
+    if exact:
+        return exact
+    for name, value in os.environ.items():
+        if _normalize(name) in ACCEPTED_NAMES and value.strip():
+            return value.strip()
+    return None
+
+
+def similar_env_names() -> list[str]:
+    """Names (never values) of settings that look like a SerpApi key, to help fix typos."""
+    return sorted(name for name in os.environ if "SERP" in name.upper())
+
+
 def _kg(grams) -> Optional[int]:
     return round(grams / 1000) if isinstance(grams, (int, float)) else None
 
@@ -33,7 +56,7 @@ class SerpApiProvider(FlightProvider):
 
     def __init__(self, api_key: Optional[str] = None, session: Optional[requests.Session] = None,
                  timeout: float = 60):
-        self.api_key = api_key or os.environ.get("SERPAPI_API_KEY")
+        self.api_key = api_key or find_api_key()
         if not self.api_key:
             raise ProviderError("SERPAPI_API_KEY is not set")
         self.session = session or requests.Session()

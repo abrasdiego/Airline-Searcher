@@ -37,13 +37,23 @@ def provider_name() -> str:
 
 def health() -> dict:
     """Whether this server can search real prices (shown as Live / Demo on the page)."""
+    from airline_searcher.providers.serpapi import find_api_key, similar_env_names
+
     name = provider_name()
     configured = {
-        "serpapi": bool(os.environ.get("SERPAPI_API_KEY")),
+        "serpapi": bool(find_api_key()),
         "duffel": bool(os.environ.get("DUFFEL_ACCESS_TOKEN")),
         "mock": True,
     }.get(name, False)
-    return {"provider": name, "configured": configured, "live": configured and name != "mock"}
+    body = {"provider": name, "configured": configured, "live": configured and name != "mock"}
+    if name == "serpapi" and not configured:
+        seen = similar_env_names()
+        body["help"] = (f"Found settings named {', '.join(seen)}, but none has a value. "
+                        "Check the value and that Production is ticked, then redeploy."
+                        if seen else
+                        "No SERPAPI_API_KEY setting reached this deployment. Add it in the project's "
+                        "Environment Variables with Production ticked, then redeploy.")
+    return body
 
 
 def _clock(stamp: Optional[str]) -> Optional[str]:
