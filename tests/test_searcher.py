@@ -241,3 +241,21 @@ def test_serpapi_parses_insights_logos_and_emissions():
     assert opt.airline_logo == "https://x/logo.png" and opt.layovers == ["MAD"]
     assert (opt.co2_kg, opt.co2_typical_kg) == (412, 450)
     assert opt.insights["price_level"] == "low" and len(opt.insights["price_history"]) == 2
+
+
+def test_vercel_entrypoint_serves_page_and_api(monkeypatch):
+    """index.py's `handler` (Vercel's Python preset) serves the page, airport list and API."""
+    import threading
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+    from index import handler
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        for path in ("/", "/web/index.html", "/airports.json", "/api/health"):
+            with urllib.request.urlopen(base + path) as res:
+                assert res.status == 200
+    finally:
+        server.shutdown()
