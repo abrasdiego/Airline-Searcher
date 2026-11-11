@@ -35,8 +35,12 @@ def provider_name() -> str:
     return os.environ.get("SEARCH_PROVIDER", "serpapi").lower()
 
 
-def health() -> dict:
-    """Whether this server can search real prices (shown as Live / Demo on the page)."""
+def health(check: bool = False) -> dict:
+    """Whether this server can search real prices (shown as Live / Demo on the page).
+
+    check=True also asks SerpApi whether the key works and how many searches are left
+    (SerpApi's account API, which doesn't use a search).
+    """
     from airline_searcher.providers.serpapi import find_api_key, similar_env_names
 
     name = provider_name()
@@ -46,6 +50,16 @@ def health() -> dict:
         "mock": True,
     }.get(name, False)
     body = {"provider": name, "configured": configured, "live": configured and name != "mock"}
+    if check and name == "serpapi" and configured:
+        from airline_searcher.providers.serpapi import account_status
+        account = account_status(find_api_key())
+        body["account"] = account
+        if not account["ok"]:
+            body["live"] = False
+            body["help"] = f"SerpApi didn't accept the key ({account['error'].rstrip('.')}). Re-enter SERPAPI_API_KEY in Vercel and redeploy."
+        elif account.get("searches_left") == 0:
+            body["live"] = False
+            body["help"] = "Your SerpApi account has no searches left this month."
     if name == "serpapi" and not configured:
         seen = similar_env_names()
         body["help"] = (f"Found settings named {', '.join(seen)}, but none has a value. "
@@ -123,6 +137,20 @@ def _insights(best: FlightOption) -> dict:
     }
 
 
+def friendly_error(details: list[str]) -> str:
+    """Explain why every search failed, in plain words."""
+    text = " ".join(details).lower()
+    if "run out of searches" in text or "plan" in text and "searches" in text:
+        return "Your SerpApi account has run out of searches for this month. Check serpapi.com/dashboard."
+    if "invalid api key" in text or "api key" in text and "invalid" in text:
+        return "SerpApi rejected the API key. Check SERPAPI_API_KEY in Vercel's settings."
+    if "timed out" in text:
+        return "The flight search took too long to answer. Try again, or search fewer airports or dates."
+    if "departure_id" in text or "arrival_id" in text:
+        return "Google Flights didn't accept one of the airports. Try turning off nearby airports."
+    return "The flight search failed. Try again in a minute."
+
+
 def _dedupe(options: list[FlightOption]) -> list[FlightOption]:
     seen, out = set(), []
     for o in sorted(options, key=lambda o: o.price):
@@ -176,8 +204,9 @@ def search_api(query: dict[str, str], today: Optional[date] = None) -> tuple[int
     if result.requests_made == 0:
         return 400, {"error": "That window is already in the past. Pick a later start date."}
     if not result.options and len(result.errors) >= result.requests_made:
-        return 502, {"error": "The flight search didn't respond. Try again in a minute.",
-                     "details": result.errors[:3]}
+        from airline_searcher.providers.serpapi import redact
+        details = [redact(e) for e in result.errors if "limit is" not in e]
+        return 502, {"error": friendly_error(details), "details": details[:3]}
 
     average, source = result.route_average()
     fares = _dedupe(result.options)
@@ -287,7 +316,8 @@ class Handler(BaseHTTPRequestHandler):
             status, body = returns_api(query_from_url(self.path))
             self._send(status, json.dumps(body).encode(), "application/json")
         elif path == "/api/health":
-            self._send(200, json.dumps(health()).encode(), "application/json")
+            check = query_from_url(self.path).get("check") == "1"
+            self._send(200, json.dumps(health(check)).encode(), "application/json")
         else:
             self._send(404, b"Not found", "text/plain")
 
