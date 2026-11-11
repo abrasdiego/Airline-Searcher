@@ -916,17 +916,23 @@ function demoSearch(q) {
 
 /* ================= live / demo detection ================= */
 async function detectMode() {
+  let label = "Demo prices";
   try {
-    const res = await fetch("api/health", { headers: { Accept: "application/json" } });
+    const res = await fetch("api/health?check=1", { headers: { Accept: "application/json" } });
     if ((res.headers.get("content-type") || "").includes("json")) {
       const h = await res.json();
       S.mode = h.live ? "live" : "demo";
-      S.serverDemoReason = h.live ? "" : (h.provider === "mock" ? "This server uses demo prices." : "Live search isn't set up on this server yet: add SERPAPI_API_KEY to its settings.");
+      S.serverDemoReason = h.live ? "" : (h.help || (h.provider === "mock" ? "This server uses demo prices." : "Live search isn't set up on this server yet: add SERPAPI_API_KEY to its settings."));
+      const left = h.account?.searches_left;
+      if (h.live) label = left != null ? `Live · ${Number(left).toLocaleString("en-US")} searches left` : "Live prices";
+      else if (h.provider !== "mock" && h.configured) label = "Search key problem";
+      S.searchesLeft = left;
     } else S.mode = "demo";
   } catch (e) { S.mode = "demo"; }
   const st = $("status");
   st.className = `status ${S.mode}`;
-  $("status-text").textContent = S.mode === "live" ? "Live prices" : "Demo prices";
+  st.title = S.serverDemoReason || "";
+  $("status-text").textContent = label;
 }
 
 /* ================= search ================= */
@@ -945,15 +951,17 @@ async function runSearch(e) {
     try {
       const res = await fetch("api/search?" + new URLSearchParams(apiQuery(q)), { headers: { Accept: "application/json" } });
       const body = await res.json();
-      if (res.ok) data = body; else failure = body.error || "The search failed. Try again.";
+      if (res.ok) data = body;
+      else failure = (body.error || "The search failed. Try again.") + (body.details?.length ? `<br><small style="opacity:.7">${esc(body.details[0])}</small>` : "");
     } catch (err) { failure = "Couldn't reach the search server. Check your connection and try again."; }
+    failure = failure && !failure.includes("<br>") ? esc(failure) : failure;
   } else {
     await new Promise((r) => setTimeout(r, reduceMotion ? 50 : 1200));
     data = demoSearch(apiQuery(q));
   }
   if (token !== searchToken) return;
   map.busy = false; $("go").disabled = false; $("go").classList.remove("busy"); $("go-text").textContent = "Find fares";
-  if (failure) { $("results").innerHTML = `<div class="card empty">${esc(failure)}</div>`; return; }
+  if (failure) { $("results").innerHTML = `<div class="card empty">${failure}</div>`; return; }
   S.data = data; S.dayFilter = null; S.shown = 10; S.sort = "price"; S.f = {}; S.lastQuery = apiQuery(q);
   renderResults();
 }
@@ -1311,6 +1319,11 @@ let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT =
   await Promise.all([loadAirports(), detectMode()]);
   map.dots = null; drawRoute();
   $("nearby").checked = store.get("fw-nearby", true);
+  if (!store.get("fw-last", null)) {
+    const region = (navigator.language || "").split("-")[1];
+    const cur = { CA: "CAD", BR: "BRL", GB: "GBP", AU: "AUD", MX: "MXN", JP: "JPY", CH: "CHF", IN: "INR", DE: "EUR", FR: "EUR", ES: "EUR", IT: "EUR", PT: "EUR", NL: "EUR", IE: "EUR" }[region];
+    if (cur) { $("currency").value = cur; updatePlan(); }
+  }
   let params = {};
   try { params = Object.fromEntries(new URLSearchParams(location.search)); } catch (e) {}
   if (params.from && params.to) { applyQuery(params); runSearch(); return; }

@@ -308,3 +308,44 @@ def test_returns_api_needs_token_and_uses_cache(monkeypatch):
     status, body = web.returns_api({"token": "t", "from": "YYJ", "to": "CNF", "depart": "2027-02-03",
                                     "return": "2027-02-17"})
     assert status == 200 and body["fares"] and body["fares"][0]["legs"][0]["from"] == "CNF"
+
+
+def test_errors_never_contain_the_api_key():
+    import requests as rq
+    from airline_searcher.providers.serpapi import redact
+
+    class Boom:
+        def get(self, url, params, timeout):
+            raise rq.ConnectionError(f"Max retries exceeded with url: /search.json?api_key=SECRET123&x=1")
+
+    p = SerpApiProvider(api_key="SECRET123", session=Boom())
+    with pytest.raises(ProviderError) as err:
+        p.search(SearchRequest("YYJ", "CNF", date(2027, 2, 15), None))
+    assert "SECRET123" not in str(err.value)
+    assert redact("bad url ...?api_key=abc&x=1") == "bad url ...?api_key=***&x=1"
+    assert redact("key SECRET123 shown", "SECRET123") == "key *** shown"
+
+
+def test_friendly_error_messages():
+    from airline_searcher.web import friendly_error
+    assert "run out of searches" in friendly_error(["SerpApi error: Your account has run out of searches."])
+    assert "too long" in friendly_error(["SerpApi request timed out"])
+    assert "Try again" in friendly_error(["something else"])
+
+
+def test_account_status_checks_key_without_leaking_it(monkeypatch):
+    from airline_searcher.providers import serpapi
+
+    class Resp:
+        def __init__(self, code, data): self.status_code, self.data = code, data
+        def json(self): return self.data
+
+    monkeypatch.setattr(serpapi.requests, "get", lambda url, params, timeout: Resp(200, {
+        "api_key": params["api_key"], "account_email": "me@example.com", "plan_name": "Free Plan",
+        "searches_per_month": 250, "total_searches_left": 183, "this_month_usage": 67}))
+    ok = serpapi.account_status("SECRET")
+    assert ok == {"ok": True, "plan": "Free Plan", "searches_left": 183, "searches_per_month": 250,
+                  "used_this_month": 67}
+    monkeypatch.setattr(serpapi.requests, "get", lambda url, params, timeout: Resp(401, {"error": "Invalid API key."}))
+    bad = serpapi.account_status("SECRET")
+    assert bad["ok"] is False and "SECRET" not in str(bad)

@@ -68,7 +68,7 @@ class DuffelProvider(FlightProvider):
                                      json=self.build_body(request), headers=headers,
                                      timeout=self.timeout)
         except requests.RequestException as exc:
-            raise ProviderError(f"Duffel request failed: {exc}") from exc
+            raise ProviderError(f"Duffel request failed ({type(exc).__name__})") from exc
         if resp.status_code >= 400:
             raise ProviderError(f"Duffel error HTTP {resp.status_code}: {resp.text[:300]}")
         return self.parse(resp.json(), request)

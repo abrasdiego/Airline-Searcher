@@ -6,6 +6,7 @@ Needs SERPAPI_API_KEY. Each date combination costs one SerpApi search.
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
 
 import requests
@@ -45,6 +46,36 @@ def find_api_key() -> Optional[str]:
 def similar_env_names() -> list[str]:
     """Names (never values) of settings that look like a SerpApi key, to help fix typos."""
     return sorted(name for name in os.environ if "SERP" in name.upper())
+
+
+ACCOUNT_ENDPOINT = "https://serpapi.com/account.json"
+
+
+def account_status(api_key: str, timeout: float = 15) -> dict:
+    """Check the key with SerpApi's account API (free: it doesn't use a search).
+
+    Returns {"ok": True, "plan": ..., "searches_left": ..., "searches_per_month": ...}
+    or {"ok": False, "error": ...}. Never returns the key or account email.
+    """
+    try:
+        resp = requests.get(ACCOUNT_ENDPOINT, params={"api_key": api_key}, timeout=timeout)
+        data = resp.json()
+    except requests.RequestException as exc:
+        return {"ok": False, "error": f"Couldn't reach SerpApi ({type(exc).__name__})"}
+    except ValueError:
+        return {"ok": False, "error": f"SerpApi answered with HTTP {resp.status_code}"}
+    if resp.status_code != 200 or data.get("error"):
+        return {"ok": False, "error": redact(data.get("error") or f"HTTP {resp.status_code}", api_key)}
+    left = data.get("total_searches_left", data.get("plan_searches_left"))
+    return {"ok": True, "plan": data.get("plan_name"), "searches_left": left,
+            "searches_per_month": data.get("searches_per_month"),
+            "used_this_month": data.get("this_month_usage")}
+
+
+def redact(text: str, secret: Optional[str] = None) -> str:
+    """Remove API keys from text that may be shown to people."""
+    text = re.sub(r"(api_key=)[^&\s'\"]+", r"\1***", str(text))
+    return text.replace(secret, "***") if secret else text
 
 
 def _leg(f: dict) -> Leg:
@@ -116,7 +147,9 @@ class SerpApiProvider(FlightProvider):
         try:
             resp = self.session.get(ENDPOINT, params=params, timeout=self.timeout)
         except requests.RequestException as exc:
-            raise ProviderError(f"SerpApi request failed: {exc}") from exc
+            # Never include the exception text: requests puts the full URL (with api_key) in it.
+            kind = "timed out" if isinstance(exc, requests.Timeout) else f"failed ({type(exc).__name__})"
+            raise ProviderError(f"SerpApi request {kind}") from exc
         try:
             payload = resp.json()
         except ValueError as exc:
@@ -125,7 +158,7 @@ class SerpApiProvider(FlightProvider):
             message = str(payload.get("error", f"HTTP {resp.status_code}"))
             if "hasn't returned any results" in message:
                 return {}
-            raise ProviderError(f"SerpApi error: {message}")
+            raise ProviderError(f"SerpApi error: {redact(message, self.api_key)}")
         return payload
 
     def return_flights(self, request: SearchRequest, departure_token: str) -> list[FlightOption]:
