@@ -83,7 +83,8 @@ def _keep(opt: FlightOption, cfg: SearchConfig) -> bool:
 
 
 def run_search(cfg: SearchConfig, provider: FlightProvider, today: Optional[date] = None,
-               max_requests: int = 60, workers: int = 1) -> SearchResult:
+               max_requests: int = 60, workers: int = 1, country: Optional[str] = None,
+               fresh: bool = False) -> SearchResult:
     """Search every date combination. workers > 1 runs that many requests at once."""
     today = today or date.today()
     pairs = date_combinations(cfg, today)
@@ -99,7 +100,7 @@ def run_search(cfg: SearchConfig, provider: FlightProvider, today: Optional[date
         SearchRequest(
             origin=cfg.origin, destination=cfg.destination, depart_date=depart,
             return_date=ret, adults=cfg.adults, cabin=cfg.cabin, currency=cfg.currency,
-            max_stops=cfg.max_stops,
+            max_stops=cfg.max_stops, country=country, fresh=fresh,
         )
         for depart, ret in pairs
     ]

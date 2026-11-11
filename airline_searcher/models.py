@@ -88,3 +88,5 @@ class SearchRequest:
     cabin: str = "economy"
     currency: str = "USD"
     max_stops: Optional[int] = None
+    country: Optional[str] = None   # where the traveller shops from (Google's "gl"); prices differ by country
+    fresh: bool = False             # skip SerpApi's cache to get the latest prices

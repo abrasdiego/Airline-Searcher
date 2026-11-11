@@ -122,6 +122,12 @@ A search page that works well on a phone. It searches every date in your travel 
   overnight and often-delayed warnings, and each layover's length.
 - **Return flights:** for round trips, "See return flights" lists the return choices for that outbound
   (round-trip prices). This uses one search.
+- **Prices that match Google Flights:** searches use your country (Google prices differ by country) and
+  currency, and the price links open Google Flights with the same country and currency. "Refresh prices"
+  skips saved results and fetches fresh ones (fares change often).
+- **Booking options & exact price:** in Flight details (after choosing a return for round trips), see every
+  airline or travel site selling that exact itinerary with its final price, bag fees, and a button to book.
+  Uses one search.
 - **Share** a search as a link. Recent searches are remembered on your device.
 
 The page (`web/index.html`) needs a small server that keeps your API key secret
@@ -137,7 +143,7 @@ The top-right badge says **Live prices** when the key is set, and **Demo prices*
 
 Each search uses one SerpApi search per date (7 for a 2-week window with 7-night stays) and checks
 at most 14 dates (`MAX_WEB_COMBINATIONS`). Identical searches within 30 minutes reuse the saved
-results (`SEARCH_CACHE_SECONDS`), so they don't use your quota. Anyone who has your site's link can
+results (`SEARCH_CACHE_SECONDS`, 15 minutes), so they don't use your quota. Anyone who has your site's link can
 search with your quota.
 
 Run it on your own computer instead:

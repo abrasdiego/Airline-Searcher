@@ -79,6 +79,7 @@ class MockProvider(FlightProvider):
                 legs=legs,
                 layover_details=lays,
                 departure_token=f"mock|{rng.random():.6f}" if request.return_date else None,
+                booking_token=None if request.return_date else f"mockbook|{price}",
                 typical_low=typical_low,
                 typical_high=typical_high,
                 layovers=via,
@@ -97,4 +98,15 @@ class MockProvider(FlightProvider):
             o.origin, o.destination = request.origin, request.destination
             o.depart_date, o.return_date = request.depart_date, request.return_date
             o.departure_token = None
+            o.booking_token = f"mockbook|{o.price}"
         return options
+
+    def booking_options(self, request: SearchRequest, booking_token: str) -> list[dict]:
+        price = float(booking_token.split("|")[-1]) if "|" in booking_token else 500.0
+        return [
+            {"seller": "Skyline Air", "price": price, "title": "Economy Basic", "extensions": ["Carry-on bag included"],
+             "baggage": ["1st checked bag: 40 USD"], "url": "https://www.google.com/travel/clk/f", "post_data": "u=demo",
+             "separate": None},
+            {"seller": "TravelSite", "price": round(price * 1.04), "title": None, "extensions": [], "baggage": [],
+             "url": "https://www.google.com/travel/clk/f", "post_data": "u=demo2", "separate": None},
+        ]

@@ -93,6 +93,19 @@ def account_status(api_key: str, timeout: float = 15) -> dict:
             "used_this_month": data.get("this_month_usage")}
 
 
+def google_link(url: Optional[str], currency: str, country: Optional[str]) -> Optional[str]:
+    """Google Flights link with the same currency, country and language as the search."""
+    if not url:
+        return None
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update({"curr": currency, "hl": "en"})
+    if country:
+        query["gl"] = country.lower()
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
 def redact(text: str, secret: Optional[str] = None) -> str:
     """Remove API keys from text that may be shown to people."""
     text = re.sub(r"(api_key=)[^&\s'\"]+", r"\1***", str(text))
@@ -158,6 +171,10 @@ class SerpApiProvider(FlightProvider):
             params["deep_search"] = "true"   # browser-identical results, but several times slower
         if req.return_date:
             params["return_date"] = req.return_date.isoformat()
+        if req.country:
+            params["gl"] = req.country.lower()   # same point of sale as the traveller sees on Google
+        if req.fresh:
+            params["no_cache"] = "true"          # SerpApi otherwise reuses results up to an hour old
         return params
 
     def search(self, request: SearchRequest) -> list[FlightOption]:
@@ -187,8 +204,35 @@ class SerpApiProvider(FlightProvider):
         payload = self._get({**self.build_params(request), "departure_token": departure_token})
         return self.parse(payload, request) if payload else []
 
+    def booking_options(self, request: SearchRequest, booking_token: str) -> list[dict]:
+        """Where this exact itinerary can be bought and for how much (uses one search).
+
+        Each option: {"seller", "price", "title", "extensions", "baggage", "url", "post_data", "separate"}.
+        "url" + "post_data" is Google's redirect to the seller (sent as a form POST).
+        """
+        params = {**self.build_params(request), "booking_token": booking_token}
+        params.pop("show_hidden", None)
+        payload = self._get(params)
+        options = []
+        for opt in payload.get("booking_options") or []:
+            parts = [opt["together"]] if opt.get("together") else [p for p in (opt.get("departing"), opt.get("returning")) if p]
+            for k, part in enumerate(parts):
+                req = part.get("booking_request") or {}
+                options.append({
+                    "seller": part.get("book_with") or "",
+                    "price": part.get("price"),
+                    "title": part.get("option_title"),
+                    "extensions": [e for e in part.get("extensions") or [] if isinstance(e, str)][:4],
+                    "baggage": [b for b in part.get("baggage_prices") or [] if isinstance(b, str)][:3],
+                    "url": req.get("url") if str(req.get("url", "")).startswith("https://") else None,
+                    "post_data": req.get("post_data"),
+                    "separate": None if len(parts) == 1 else ("departing" if k == 0 else "returning"),
+                })
+        return options
+
     def parse(self, payload: dict, req: SearchRequest) -> list[FlightOption]:
-        booking_url = (payload.get("search_metadata") or {}).get("google_flights_url")
+        booking_url = google_link(
+            (payload.get("search_metadata") or {}).get("google_flights_url"), req.currency, req.country)
         price_insights = payload.get("price_insights") or {}
         typical = price_insights.get("typical_price_range") or [None, None]
         typical_low, typical_high = (list(typical) + [None, None])[:2]
