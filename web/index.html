@@ -236,6 +236,12 @@ select { width: 100%; min-height: 48px; border-radius: 12px; background: var(--b
 .returns { display: grid; gap: 8px; }
 .ret { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
 .ret .pbtn { font-size: 16px; min-height: 40px; }
+.checked { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.book-opts { display: grid; gap: 8px; }
+.bopt { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.bopt form { margin: 0; }
+.bopt button.pbtn { border: 0; cursor: pointer; }
+.note { font-size: 12px; color: var(--muted); text-align: center; margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .toolbar .count { font-size: 13px; color: var(--muted); }
 .fares { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -802,9 +808,13 @@ function readQuery() {
   };
 }
 // What is sent to the search: the chosen airports plus nearby ones when that option is on.
+// The country you shop from: Google Flights prices can differ by country.
+const COUNTRY = ((navigator.language || "").split("-")[1] || "").toLowerCase();
 function apiQuery(q) {
   const { nearby, ...rest } = q;
-  return { ...rest, from: searchCodes("from") || q.from, to: searchCodes("to") || q.to };
+  const out = { ...rest, from: searchCodes("from") || q.from, to: searchCodes("to") || q.to };
+  if (/^[a-z]{2}$/.test(COUNTRY)) out.gl = COUNTRY;
+  return out;
 }
 function problem(q) {
   if (!q.from) return "Choose where you're flying from.";
@@ -852,7 +862,7 @@ function demoLegs(f, day, startMin, r) {
 }
 function demoReturns(q, fare) {
   const back = demoSearch({ ...q, from: q.to, to: q.from, start: fare.return_date, days: 1, trip: "one_way" });
-  return { currency: q.currency, fares: back.fares.slice(0, 8).map((f) => ({ ...f, price: fare.price, booking_url: fare.booking_url })) };
+  return { currency: q.currency, fares: back.fares.slice(0, 8).map((f, k) => ({ ...f, price: fare.price + k * 37, booking_url: fare.booking_url, booking_token: "demo", depart_date: fare.depart_date, return_date: fare.return_date })) };
 }
 function demoSearch(q) {
   const hash = (s) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
@@ -893,6 +903,7 @@ function demoSearch(q) {
       f.from_airport = q.from.split(",")[Math.floor(r() * q.from.split(",").length)];
       f.legs[0].from = f.from_airport;
       f.departure_token = ret ? "demo" : null;
+      f.booking_token = ret ? null : "demo";
     }
   }
   fares.sort((a, b) => a.price - b.price);
@@ -937,8 +948,8 @@ async function detectMode() {
 
 /* ================= search ================= */
 let searchToken = 0;
-async function runSearch(e) {
-  e?.preventDefault();
+async function runSearch(e, fresh) {
+  e?.preventDefault?.();
   const q = readQuery(), why = problem(q);
   $("error").hidden = !why; $("error").textContent = why;
   if (why) return;
@@ -949,7 +960,7 @@ async function runSearch(e) {
   let data = null, failure = "";
   if (S.mode === "live") {
     try {
-      const res = await fetch("api/search?" + new URLSearchParams(apiQuery(q)), { headers: { Accept: "application/json" } });
+      const res = await fetch("api/search?" + new URLSearchParams({ ...apiQuery(q), ...(fresh ? { fresh: "1" } : {}) }), { headers: { Accept: "application/json" } });
       const body = await res.json();
       if (res.ok) data = body;
       else failure = (body.error || "The search failed. Try again.") + (body.details?.length ? `<br><small style="opacity:.7">${esc(body.details[0])}</small>` : "");
@@ -1060,8 +1071,10 @@ function returnsHtml(data, cur) {
     const via = f.stops === 0 ? "Nonstop" : `${f.stops} stop${f.stops > 1 ? "s" : ""}${f.layovers?.length ? " via " + f.layovers.join(", ") : ""}`;
     const url = /^https:\/\//.test(f.booking_url || "") ? f.booking_url : googleLink(readQuery(), f.depart_date, f.return_date);
     return `<div class="ret"><div><div class="leg-t">${esc(a.t)} → ${esc(b.t)}${f.arrive_day_offset ? `<sup>+${f.arrive_day_offset}</sup>` : ""} <small>· ${esc(a.d)}</small></div>
-      <div class="leg-m">${esc((f.airlines || []).join(", "))} · ${dur(f.duration_minutes)} · ${esc(via)}</div></div>
-      <a class="pbtn" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Round trip ${esc(money(f.price, cur))} on Google Flights">${money(f.price, cur)}${ICON_OUT}</a></div>`;
+      <div class="leg-m">${esc((f.airlines || []).join(", "))} · ${dur(f.duration_minutes)} · ${esc(via)}</div>
+      ${f.booking_token ? `<button type="button" class="f-more" data-book="${esc(f.booking_token)}" data-depart="${esc(f.depart_date)}" data-ret="${esc(f.return_date || "")}">Booking options &amp; exact price ▾</button>` : ""}</div>
+      <a class="pbtn" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Round trip ${esc(money(f.price, cur))} on Google Flights">${money(f.price, cur)}${ICON_OUT}</a>
+      <div class="book-box" style="grid-column:1/-1" hidden></div></div>`;
   }).join("")}</div><p class="leg-m">Prices are for the whole round trip.</p>`;
 }
 async function toggleDetails(btn) {
@@ -1071,9 +1084,53 @@ async function toggleDetails(btn) {
   if (!open || box.dataset.ready) return;
   box.dataset.ready = "1";
   const canReturn = f.return_date && f.departure_token;
+  const cost = `<p class="leg-m" style="margin:6px 0 0">${S.mode === "live" ? "Uses 1 search from your quota." : "Demo data."}</p>`;
   box.innerHTML = `<div class="lbl">Outbound · ${esc(fmtDay(f.depart_date))}</div>${legsHtml(f)}
-    ${canReturn ? `<div><button type="button" class="ghost" data-returns="${i}">See return flights for ${esc(fmtDay(f.return_date))}</button>
-      <p class="leg-m" style="margin:6px 0 0">${S.mode === "live" ? "Uses 1 search from your quota." : "Demo data."}</p></div>` : ""}`;
+    ${canReturn ? `<div><button type="button" class="ghost" data-returns="${i}">Choose return flight · ${esc(fmtDay(f.return_date))}</button>
+      <p class="leg-m" style="margin:6px 0 0">Pick a return to see where to book it and the exact price. ${S.mode === "live" ? "Uses 1 search." : "Demo data."}</p></div>` : ""}
+    ${!f.return_date && f.booking_token ? `<div><button type="button" class="ghost" data-book="${esc(f.booking_token)}" data-depart="${esc(f.depart_date)}">Booking options &amp; exact price</button>${cost}</div>` : ""}`;
+}
+function bookingHtml(data, cur) {
+  if (!data.options?.length) return `<p class="leg-m">Google Flights has no booking options for this itinerary right now. Use the price button to open it on Google Flights.</p>`;
+  return `<div class="book-opts">${data.options.map((o) => {
+    const fields = String(o.post_data || "").split("&").filter(Boolean).map((kv) => {
+      const [k, v = ""] = kv.split("=");
+      let key = k, val = v;
+      try { key = decodeURIComponent(k.replace(/\+/g, " ")); val = decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) {}
+      return `<input type="hidden" name="${esc(key)}" value="${esc(val)}">`;
+    }).join("");
+    const price = o.price != null ? money(o.price, cur) : "See price";
+    const action = o.url && o.post_data
+      ? `<form method="post" action="${esc(o.url)}" target="_blank" rel="noopener">${fields}<button type="submit" class="pbtn">${price}${ICON_OUT}</button></form>`
+      : o.url ? `<a class="pbtn" href="${esc(o.url)}" target="_blank" rel="noopener">${price}${ICON_OUT}</a>` : `<span class="pbtn">${price}</span>`;
+    const info = [o.title, ...(o.extensions || []), ...(o.baggage || [])].filter(Boolean).map(esc).join(" · ");
+    return `<div class="bopt"><div><div class="leg-t">${esc(o.seller || "Seller")}${o.separate ? ` <small>· ${esc(o.separate)} ticket</small>` : ""}</div>
+      ${info ? `<div class="leg-m">${info}</div>` : ""}</div>${action}</div>`;
+  }).join("")}</div><p class="leg-m">Exact prices from each seller, for all passengers. Book opens the seller's page.</p>`;
+}
+async function loadBooking(btn) {
+  const d = S.data, cur = d.currency;
+  const box = btn.closest(".ret")?.querySelector(".book-box") || btn.parentElement;
+  if (box.classList.contains("book-box")) { if (!box.hidden && box.dataset.ready) { box.hidden = true; return; } box.hidden = false; }
+  if (box.dataset.ready) return;
+  box.innerHTML = `<p class="loading-text">Getting exact prices…</p>`;
+  let data;
+  if (S.mode === "live") {
+    try {
+      const params = { booking_token: btn.dataset.book, from: d.origin, to: d.destination, depart: btn.dataset.depart,
+        return: btn.dataset.ret || "", adults: d.adults, cabin: d.cabin || "economy", currency: cur,
+        ...(S.lastQuery?.gl ? { gl: S.lastQuery.gl } : {}) };
+      const res = await fetch("api/booking?" + new URLSearchParams(params), { headers: { Accept: "application/json" } });
+      data = await res.json();
+      if (!res.ok) { box.innerHTML = `<p class="error">${esc(data.error || "Couldn't load booking options.")}</p>`; return; }
+    } catch (e) { box.innerHTML = `<p class="error">Couldn't reach the search server.</p>`; return; }
+  } else {
+    const price = +(btn.closest(".ret, .fare")?.querySelector(".pbtn")?.textContent.replace(/[^0-9.]/g, "") || 0);
+    data = { options: [{ seller: "Skyline Air", price, title: "Economy", extensions: ["Carry-on bag included"], baggage: [] },
+                       { seller: "TravelSite", price: Math.round(price * 1.04), extensions: [], baggage: [] }] };
+  }
+  box.dataset.ready = "1";
+  box.innerHTML = bookingHtml(data, cur);
 }
 async function loadReturns(btn) {
   const i = +btn.dataset.returns, f = S.visible[i], d = S.data, cur = d.currency;
@@ -1083,7 +1140,7 @@ async function loadReturns(btn) {
   if (S.mode === "live") {
     try {
       const params = { token: f.departure_token, from: d.origin, to: d.destination, depart: f.depart_date, return: f.return_date,
-        adults: d.adults, cabin: d.cabin || "economy", currency: cur };
+        adults: d.adults, cabin: d.cabin || "economy", currency: cur, ...(S.lastQuery?.gl ? { gl: S.lastQuery.gl } : {}) };
       const res = await fetch("api/returns?" + new URLSearchParams(params), { headers: { Accept: "application/json" } });
       data = await res.json();
       if (!res.ok) { holder.innerHTML = `<p class="error">${esc(data.error || "Couldn't load return flights.")}</p>`; return; }
@@ -1143,6 +1200,8 @@ function renderResults() {
     <div class="res-head">
       <div><h2>${esc(codeTag(S.from || { codes: d.origin }))} → ${esc(codeTag(S.to || { codes: d.destination }))}</h2>
         <p>${fmtDay(d.window_start, { day: "numeric", month: "short" })} – ${fmtDay(d.window_end, { day: "numeric", month: "short" })} · ${d.trip_type === "round_trip" ? d.nights + "-night stays" : "One-way"} · ${d.searched} dates checked${d.skipped ? ` (${d.skipped} more not checked)` : ""}${d.cached ? " · saved results" : ""}</p></div>
+      <div class="checked">${d.searched_at ? `Prices checked ${new Date(d.searched_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : ""}
+        ${S.mode === "live" ? `<button class="ghost" type="button" id="refresh">Refresh prices</button>` : ""}</div>
       <button class="ghost" type="button" id="share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v14"/></svg>Share</button>
     </div>
     ${banner}
@@ -1179,9 +1238,12 @@ function renderResults() {
       <span class="count" id="count"></span>
     </div>
     <ul class="fares" id="fares"></ul>
-    <button class="ghost more-btn" type="button" id="show-more" hidden>Show more fares</button>`;
+    <button class="ghost more-btn" type="button" id="show-more" hidden>Show more fares</button>
+    <p class="note">Price buttons open Google Flights for the same dates, airports and passengers. Fares change often;
+      for the exact final price from each airline or travel site, open <b>Flight details</b> and choose <b>Booking options</b>.</p>`;
   renderFares();
   $("share").addEventListener("click", share);
+  $("refresh")?.addEventListener("click", () => runSearch(null, true));
   $("cal").addEventListener("click", (e) => {
     const b = e.target.closest(".day"); if (!b) return;
     S.dayFilter = S.dayFilter === b.dataset.date ? null : b.dataset.date; S.shown = 10;
@@ -1196,7 +1258,8 @@ function renderResults() {
   $("show-more").addEventListener("click", () => { S.shown += 20; renderFares(); });
   $("fares").addEventListener("click", (e) => {
     const det = e.target.closest("[data-detail]"); if (det) { toggleDetails(det); return; }
-    const ret = e.target.closest("[data-returns]"); if (ret) loadReturns(ret);
+    const ret = e.target.closest("[data-returns]"); if (ret) { loadReturns(ret); return; }
+    const book = e.target.closest("[data-book]"); if (book) loadBooking(book);
   });
   $("breakdown").addEventListener("click", (e) => {
     if (e.target.closest("#clear-filters")) { S.f = {}; S.shown = 10; renderFares(); return; }

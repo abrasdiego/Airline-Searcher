@@ -359,3 +359,60 @@ def test_clean_key_fixes_common_paste_mistakes():
         assert clean_key(pasted) == k, pasted
     assert "64 letters" in describe_key(k) and k not in describe_key(k)
     assert "12 characters" in describe_key("abc123abc123")
+
+
+def test_country_fresh_and_google_link_match_the_search():
+    from urllib.parse import parse_qs, urlparse
+    from airline_searcher.providers.serpapi import google_link
+    p = SerpApiProvider(api_key="k")
+    req = SearchRequest("YYJ", "CNF", date(2027, 2, 15), date(2027, 2, 22), currency="CAD", country="CA", fresh=True)
+    params = p.build_params(req)
+    assert params["gl"] == "ca" and params["no_cache"] == "true" and params["currency"] == "CAD"
+    assert "gl" not in p.build_params(SearchRequest("YYJ", "CNF", date(2027, 2, 15), None))
+    url = google_link("https://www.google.com/travel/flights?tfs=ABC&curr=USD&hl=pt", "CAD", "ca")
+    q = parse_qs(urlparse(url).query)
+    assert q["tfs"] == ["ABC"] and q["curr"] == ["CAD"] and q["gl"] == ["ca"] and q["hl"] == ["en"]
+
+
+def test_booking_options_parse_together_and_separate_tickets():
+    class Resp:
+        status_code = 200
+        def __init__(self, d): self.d = d
+        def json(self): return self.d
+
+    class Session:
+        def __init__(self): self.params = None
+        def get(self, url, params, timeout):
+            self.params = params
+            return Resp({"booking_options": [
+                {"together": {"book_with": "Air Canada", "price": 1538, "option_title": "Standard",
+                              "extensions": ["1 carry-on bag"], "baggage_prices": ["1st checked bag: 35 CAD"],
+                              "booking_request": {"url": "https://www.google.com/travel/clk/f", "post_data": "u=abc"}}},
+                {"departing": {"book_with": "Gol", "price": 700, "booking_request": {"url": "https://g/x", "post_data": "u=1"}},
+                 "returning": {"book_with": "Azul", "price": 800, "booking_request": {"url": "javascript:bad"}}},
+            ]})
+
+    s = Session()
+    p = SerpApiProvider(api_key="k", session=s)
+    opts = p.booking_options(SearchRequest("YYJ", "CNF", date(2027, 2, 15), date(2027, 2, 22)), "tok")
+    assert s.params["booking_token"] == "tok" and "show_hidden" not in s.params
+    assert opts[0] == {"seller": "Air Canada", "price": 1538, "title": "Standard", "extensions": ["1 carry-on bag"],
+                       "baggage": ["1st checked bag: 35 CAD"], "url": "https://www.google.com/travel/clk/f",
+                       "post_data": "u=abc", "separate": None}
+    assert [o["separate"] for o in opts[1:]] == ["departing", "returning"]
+    assert opts[2]["url"] is None  # only https links are passed on
+
+
+def test_booking_api_and_fresh_search(monkeypatch):
+    from airline_searcher import web
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    web._cache.clear()
+    q = {"from": "YYJ", "to": "CNF", "start": "2027-02-15", "days": "7", "trip": "one_way", "gl": "ca"}
+    status, body = web.search_api(q, today=TODAY)
+    token = body["fares"][0]["booking_token"]
+    assert status == 200 and token
+    assert web.search_api(q, today=TODAY)[1]["cached"] is True
+    assert web.search_api({**q, "fresh": "1"}, today=TODAY)[1]["cached"] is False
+    status, booking = web.booking_api({"booking_token": token, "from": "YYJ", "to": "CNF", "depart": "2027-02-15"})
+    assert status == 200 and booking["options"][0]["price"] == body["fares"][0]["price"]
+    assert web.booking_api({"from": "YYJ"})[0] == 400

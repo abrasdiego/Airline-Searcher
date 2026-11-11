@@ -24,7 +24,7 @@ from airline_searcher.search import run_search
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 MAX_COMBINATIONS = int(os.environ.get("MAX_WEB_COMBINATIONS", "14"))
-CACHE_SECONDS = int(os.environ.get("SEARCH_CACHE_SECONDS", "1800"))
+CACHE_SECONDS = int(os.environ.get("SEARCH_CACHE_SECONDS", "900"))
 FARES_RETURNED = int(os.environ.get("MAX_WEB_FARES", "400"))  # every fare found, up to this many
 
 _cache: dict[tuple, tuple[float, int, dict]] = {}
@@ -113,6 +113,7 @@ def _fare(o: FlightOption, average: Optional[float]) -> dict:
         } for leg in o.legs],
         "layover_details": o.layover_details,
         "departure_token": o.departure_token,
+        "booking_token": o.booking_token,
         "booking_url": o.booking_url,
         "vs_average": None if average is None else ("below" if o.price <= average else "above"),
         "diff_from_average": None if average is None else round(o.price - average, 2),
@@ -190,12 +191,14 @@ def search_api(query: dict[str, str], today: Optional[date] = None) -> tuple[int
     if (cfg.window_end - cfg.window_start).days > 30:
         return 400, {"error": "Use a travel window of 31 days or less."}
 
+    country = _country(query)
+    fresh = query.get("fresh") == "1"
     key = (cfg.origin, cfg.destination, cfg.window_start, cfg.window_end, cfg.trip_type,
-           cfg.min_nights, cfg.adults, cfg.cabin, cfg.currency, cfg.max_stops, provider_name(), today)
+           cfg.min_nights, cfg.adults, cfg.cabin, cfg.currency, cfg.max_stops, country, provider_name(), today)
     now = time.time()
     with _cache_lock:
         hit = _cache.get(key)
-        if hit and now - hit[0] < CACHE_SECONDS:
+        if hit and not fresh and now - hit[0] < CACHE_SECONDS:
             return hit[1], {**hit[2], "cached": True}
 
     try:
@@ -203,7 +206,8 @@ def search_api(query: dict[str, str], today: Optional[date] = None) -> tuple[int
     except ProviderError as exc:
         return 503, {"error": f"Live search isn't set up on this server yet ({exc})."}
 
-    result = run_search(cfg, provider, today, max_requests=MAX_COMBINATIONS, workers=8)
+    result = run_search(cfg, provider, today, max_requests=MAX_COMBINATIONS, workers=8,
+                        country=country, fresh=fresh)
     if result.requests_made == 0:
         return 400, {"error": "That window is already in the past. Pick a later start date."}
     if not result.options and len(result.errors) >= result.requests_made:
@@ -250,42 +254,86 @@ def search_api(query: dict[str, str], today: Optional[date] = None) -> tuple[int
     return 200, body
 
 
-def returns_api(query: dict[str, str]) -> tuple[int, dict]:
-    """Return flights for one chosen outbound (Google Flights' departure_token). Uses one search."""
-    token = query.get("token", "")
-    if not token or len(token) > 4000:
-        return 400, {"error": "Missing outbound flight."}
+def _country(query: dict[str, str]) -> Optional[str]:
+    """Two-letter country the traveller shops from (Google prices vary by country)."""
+    gl = (query.get("gl") or os.environ.get("SEARCH_COUNTRY") or "").strip().lower()
+    return gl if len(gl) == 2 and gl.isalpha() else None
+
+
+def _token_request(query: dict[str, str], token_name: str):
+    """Shared parsing for the return-flights and booking-options lookups."""
+    from airline_searcher.models import SearchRequest
+    token = query.get(token_name, "") or query.get("token", "")
+    if not token or len(token) > 6000:
+        return None, (400, {"error": "Missing flight."})
     try:
-        depart, ret = date.fromisoformat(query.get("depart", "")), date.fromisoformat(query.get("return", ""))
+        depart = date.fromisoformat(query.get("depart", ""))
+        ret = date.fromisoformat(query["return"]) if query.get("return") else None
         cfg = parse_search({"origin": query.get("from", ""), "destination": query.get("to", ""),
-                            "window_start": depart.isoformat(), "window_end": ret.isoformat(),
-                            "nights": max((ret - depart).days, 1), "adults": query.get("adults", "1"),
+                            "window_start": depart.isoformat(), "window_end": (ret or depart).isoformat(),
+                            "trip_type": "round_trip" if ret else "one_way",
+                            "nights": max((ret - depart).days, 1) if ret else 1, "adults": query.get("adults", "1"),
                             "currency": query.get("currency", "USD"), "cabin": query.get("cabin", "economy")},
                            0, depart)
     except (ConfigError, ValueError) as exc:
-        return 400, {"error": str(exc).replace("searches[0].", "")}
-    key = ("returns", token, cfg.currency)
+        return None, (400, {"error": str(exc).replace("searches[0].", "")})
+    req = SearchRequest(cfg.origin, cfg.destination, depart, ret, adults=cfg.adults, cabin=cfg.cabin,
+                        currency=cfg.currency, country=_country(query))
+    try:
+        provider = get_provider(provider_name())
+    except ProviderError as exc:
+        return None, (503, {"error": f"Live search isn't set up on this server yet ({exc})."})
+    return (provider, req, token), None
+
+
+def _cached(key, compute):
     with _cache_lock:
         hit = _cache.get(key)
         if hit and time.time() - hit[0] < CACHE_SECONDS:
             return hit[1], hit[2]
-    try:
-        provider = get_provider(provider_name())
-    except ProviderError as exc:
-        return 503, {"error": f"Live search isn't set up on this server yet ({exc})."}
+    status, body = compute()
+    if status == 200:
+        with _cache_lock:
+            _cache[key] = (time.time(), status, body)
+    return status, body
+
+
+def returns_api(query: dict[str, str]) -> tuple[int, dict]:
+    """Return flights for one chosen outbound (Google Flights' departure_token). Uses one search."""
+    parsed, error = _token_request(query, "token")
+    if error:
+        return error
+    provider, req, token = parsed
+    if not req.return_date:
+        return 400, {"error": "Return flights need a return date."}
     if not hasattr(provider, "return_flights"):
         return 501, {"error": "Return flights aren't available from this data source."}
-    from airline_searcher.models import SearchRequest
-    req = SearchRequest(cfg.origin, cfg.destination, depart, ret, adults=cfg.adults, cabin=cfg.cabin,
-                        currency=cfg.currency)
-    try:
-        options = provider.return_flights(req, token)
-    except ProviderError as exc:
-        return 502, {"error": f"Couldn't load return flights: {exc}"}
-    body = {"currency": cfg.currency, "fares": [_fare(o, None) for o in _dedupe(options)]}
-    with _cache_lock:
-        _cache[key] = (time.time(), 200, body)
-    return 200, body
+
+    def compute():
+        try:
+            options = provider.return_flights(req, token)
+        except ProviderError as exc:
+            return 502, {"error": f"Couldn't load return flights: {exc}"}
+        return 200, {"currency": req.currency, "fares": [_fare(o, None) for o in _dedupe(options)]}
+    return _cached(("returns", token, req.currency, req.country), compute)
+
+
+def booking_api(query: dict[str, str]) -> tuple[int, dict]:
+    """Sellers and exact prices for one itinerary (Google Flights' booking_token). Uses one search."""
+    parsed, error = _token_request(query, "booking_token")
+    if error:
+        return error
+    provider, req, token = parsed
+    if not hasattr(provider, "booking_options"):
+        return 501, {"error": "Booking options aren't available from this data source."}
+
+    def compute():
+        try:
+            options = provider.booking_options(req, token)
+        except ProviderError as exc:
+            return 502, {"error": f"Couldn't load booking options: {exc}"}
+        return 200, {"currency": req.currency, "options": options}
+    return _cached(("booking", token, req.currency, req.country), compute)
 
 
 def query_from_url(url: str) -> dict[str, str]:
@@ -315,8 +363,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/search":
             status, body = search_api(query_from_url(self.path))
             self._send(status, json.dumps(body).encode(), "application/json")
-        elif path == "/api/returns":
-            status, body = returns_api(query_from_url(self.path))
+        elif path in ("/api/returns", "/api/booking"):
+            api = returns_api if path == "/api/returns" else booking_api
+            status, body = api(query_from_url(self.path))
             self._send(status, json.dumps(body).encode(), "application/json")
         elif path == "/api/health":
             check = query_from_url(self.path).get("check") == "1"
