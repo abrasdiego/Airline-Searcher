@@ -34,6 +34,21 @@ class FlightOption:
     # Typical price range for this route and dates, when the provider reports one (Google Flights does)
     typical_low: Optional[float] = None
     typical_high: Optional[float] = None
+    airline_logo: Optional[str] = None
+    layovers: list[str] = field(default_factory=list)       # airport codes of connections
+    co2_kg: Optional[int] = None                            # this itinerary
+    co2_typical_kg: Optional[int] = None                    # typical for the route
+    # Route insights for the search this option came from (shared by its options):
+    # {"price_level": "low"|"typical"|"high", "lowest_price": ..., "price_history": [[ms, price], ...]}
+    insights: Optional[dict] = None
+
+    @property
+    def depart_time(self) -> Optional[str]:
+        return self.legs[0].departure if self.legs else None
+
+    @property
+    def arrive_time(self) -> Optional[str]:
+        return self.legs[-1].arrival if self.legs else None
 
     @property
     def date_key(self) -> str:

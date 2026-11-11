@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import statistics
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -31,6 +32,20 @@ class SearchResult:
     @property
     def best(self) -> Optional[FlightOption]:
         return min(self.options, key=lambda o: o.price) if self.options else None
+
+    def route_average(self) -> tuple[Optional[float], str]:
+        """The usual price for this route, and where it came from.
+
+        Prefers the provider's typical price range for the route (Google Flights reports one;
+        the middle of it is used). Otherwise, the mean of every fare found in this search.
+        """
+        mids = {(o.typical_low + o.typical_high) / 2 for o in self.options
+                if o.typical_low is not None and o.typical_high is not None}
+        if mids:
+            return round(statistics.mean(mids), 2), "typical"
+        if self.options:
+            return round(statistics.mean(o.price for o in self.options), 2), "found"
+        return None, "none"
 
     def cheapest_by_dates(self) -> list[FlightOption]:
         """Cheapest option for every date combination, ordered by date."""

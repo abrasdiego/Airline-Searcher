@@ -60,10 +60,12 @@ def _parse_date(value: Any, field_name: str) -> date:
 
 
 def _iata(value: Any, field_name: str) -> str:
-    code = str(value or "").strip().upper()
-    if len(code) != 3 or not code.isalpha():
-        raise ConfigError(f"{field_name}: expected a 3-letter IATA airport/city code, got {value!r}")
-    return code
+    """One 3-letter IATA code, or several separated by commas (e.g. all New York airports)."""
+    codes = [c.strip().upper() for c in str(value or "").split(",") if c.strip()]
+    if not codes or len(codes) > 7 or any(len(c) != 3 or not c.isalpha() for c in codes):
+        raise ConfigError(f"{field_name}: expected a 3-letter IATA airport code "
+                          f"(or several separated by commas), got {value!r}")
+    return ",".join(dict.fromkeys(codes))
 
 
 def _parse_window(raw: dict, label: str, today: date) -> tuple[date, date]:
@@ -95,6 +97,8 @@ def parse_search(raw: dict, index: int, today: date) -> SearchConfig:
 
     origin = _iata(raw.get("origin"), f"{label}.origin")
     destination = _iata(raw.get("destination"), f"{label}.destination")
+    if set(origin.split(",")) & set(destination.split(",")):
+        raise ConfigError(f"{label}: origin and destination must be different airports")
     start, end = _parse_window(raw, label, today)
 
     trip_type = str(raw.get("trip_type", "round_trip"))

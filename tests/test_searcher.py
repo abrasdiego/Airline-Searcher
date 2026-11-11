@@ -165,7 +165,9 @@ def test_web_search_api(monkeypatch):
                                "nights": "7", "stops": "1", "adults": "2"}, today=TODAY)
     assert status == 200 and body["searched"] == 7
     prices = [f["price"] for f in body["fares"]]
-    assert prices == sorted(prices) and 0 < len(prices) <= 10
+    assert prices == sorted(prices) and 0 < len(prices) <= 30
+    assert len(body["calendar"]) == 7 and body["insights"]["price_level"] in ("low", "typical", "high")
+    assert body["insights"]["history"] and body["fares"][0]["depart_time"]
     for f in body["fares"]:
         assert f["vs_average"] == ("below" if f["price"] <= body["average"] else "above")
         assert f["booking_url"].startswith("https://www.google.com/travel/flights?")
@@ -188,9 +190,54 @@ def test_web_search_api_without_key(monkeypatch):
 
 
 def test_route_average_prefers_google_typical_range():
-    from airline_searcher.web import route_average
     s = make_config().searches[0]
     result = run_search(s, MockProvider(), TODAY)
     for o in result.options:
         o.typical_low, o.typical_high = 500, 700
-    assert route_average(result) == (600, "typical")
+    assert result.route_average() == (600, "typical")
+    for o in result.options:
+        o.typical_low = o.typical_high = None
+    avg, source = result.route_average()
+    assert source == "found" and avg == round(sum(o.price for o in result.options) / len(result.options), 2)
+
+
+def test_web_search_api_caches_and_accepts_metro_codes(monkeypatch):
+    from airline_searcher import web
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    web._cache.clear()
+    q = {"from": "JFK,EWR,LGA", "to": "LIS", "start": "2027-01-10", "days": "7", "nights": "3"}
+    status, first = web.search_api(q, today=TODAY)
+    assert status == 200 and first["origin"] == "JFK,EWR,LGA" and first["cached"] is False
+    status, second = web.search_api(q, today=TODAY)
+    assert second["cached"] is True and second["fares"] == first["fares"]
+
+
+def test_same_airport_both_sides_is_rejected():
+    with pytest.raises(ConfigError):
+        make_config(origin="JFK,EWR", destination="EWR")
+
+
+def test_health_reports_demo_and_live(monkeypatch):
+    from airline_searcher.web import health
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    assert health() == {"provider": "mock", "configured": True, "live": False}
+    monkeypatch.setenv("SEARCH_PROVIDER", "serpapi")
+    monkeypatch.setenv("SERPAPI_API_KEY", "k")
+    assert health()["live"] is True
+
+
+def test_serpapi_parses_insights_logos_and_emissions():
+    p = SerpApiProvider(api_key="k")
+    req = SearchRequest("JFK", "LIS", date(2027, 1, 10), date(2027, 1, 17))
+    payload = {
+        "price_insights": {"lowest_price": 540, "price_level": "low", "typical_price_range": [600, 900],
+                           "price_history": [[1767225600, 700], [1767312000, 650]]},
+        "best_flights": [{"price": 540, "total_duration": 600, "airline_logo": "https://x/logo.png",
+                          "layovers": [{"id": "MAD", "name": "Madrid", "duration": 90}],
+                          "carbon_emissions": {"this_flight": 412000, "typical_for_this_route": 450000},
+                          "flights": [{"airline": "Iberia"}, {"airline": "Iberia"}]}],
+    }
+    [opt] = p.parse(payload, req)
+    assert opt.airline_logo == "https://x/logo.png" and opt.layovers == ["MAD"]
+    assert (opt.co2_kg, opt.co2_typical_kg) == (412, 450)
+    assert opt.insights["price_level"] == "low" and len(opt.insights["price_history"]) == 2

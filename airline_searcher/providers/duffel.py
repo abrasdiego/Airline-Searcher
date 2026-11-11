@@ -41,10 +41,11 @@ class DuffelProvider(FlightProvider):
         self.timeout = timeout
 
     def build_body(self, req: SearchRequest) -> dict:
-        slices = [{"origin": req.origin, "destination": req.destination,
+        origin, destination = req.origin.split(",")[0], req.destination.split(",")[0]
+        slices = [{"origin": origin, "destination": destination,
                    "departure_date": req.depart_date.isoformat()}]
         if req.return_date:
-            slices.append({"origin": req.destination, "destination": req.origin,
+            slices.append({"origin": destination, "destination": origin,
                            "departure_date": req.return_date.isoformat()})
         data = {
             "slices": slices,

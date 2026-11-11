@@ -24,6 +24,10 @@ def _stops_param(max_stops: Optional[int]) -> int:
     return max_stops + 1
 
 
+def _kg(grams) -> Optional[int]:
+    return round(grams / 1000) if isinstance(grams, (int, float)) else None
+
+
 class SerpApiProvider(FlightProvider):
     name = "serpapi"
 
@@ -72,8 +76,14 @@ class SerpApiProvider(FlightProvider):
 
     def parse(self, payload: dict, req: SearchRequest) -> list[FlightOption]:
         booking_url = (payload.get("search_metadata") or {}).get("google_flights_url")
-        typical = (payload.get("price_insights") or {}).get("typical_price_range") or [None, None]
-        typical_low, typical_high = (typical + [None, None])[:2]
+        price_insights = payload.get("price_insights") or {}
+        typical = price_insights.get("typical_price_range") or [None, None]
+        typical_low, typical_high = (list(typical) + [None, None])[:2]
+        insights = {
+            "price_level": price_insights.get("price_level"),
+            "lowest_price": price_insights.get("lowest_price"),
+            "price_history": price_insights.get("price_history") or [],
+        } if price_insights else None
         options: list[FlightOption] = []
         for group in ("best_flights", "other_flights"):
             for item in payload.get(group) or []:
@@ -108,6 +118,13 @@ class SerpApiProvider(FlightProvider):
                         booking_url=booking_url,
                         typical_low=typical_low,
                         typical_high=typical_high,
+                        airline_logo=item.get("airline_logo")
+                        or next((f.get("airline_logo") for f in item.get("flights") or []
+                                 if f.get("airline_logo")), None),
+                        layovers=[lay.get("id", "") for lay in item.get("layovers") or [] if lay.get("id")],
+                        co2_kg=_kg((item.get("carbon_emissions") or {}).get("this_flight")),
+                        co2_typical_kg=_kg((item.get("carbon_emissions") or {}).get("typical_for_this_route")),
+                        insights=insights,
                     )
                 )
         return options
