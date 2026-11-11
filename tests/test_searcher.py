@@ -104,6 +104,7 @@ def test_serpapi_params_and_parse():
     req = SearchRequest("JFK", "LIS", date(2027, 1, 10), date(2027, 1, 17), max_stops=1)
     params = p.build_params(req)
     assert params["type"] == 1 and params["return_date"] == "2027-01-17" and params["stops"] == 2
+    assert params["show_hidden"] == "true" and "deep_search" not in params
     payload = {
         "search_metadata": {"google_flights_url": "https://www.google.com/travel/flights?x"},
         "price_insights": {"typical_price_range": [500, 700]},
@@ -165,7 +166,7 @@ def test_web_search_api(monkeypatch):
                                "nights": "7", "stops": "1", "adults": "2"}, today=TODAY)
     assert status == 200 and body["searched"] == 7
     prices = [f["price"] for f in body["fares"]]
-    assert prices == sorted(prices) and 0 < len(prices) <= 30
+    assert prices == sorted(prices) and len(prices) > 10
     assert len(body["calendar"]) == 7 and body["insights"]["price_level"] in ("low", "typical", "high")
     assert body["insights"]["history"] and body["fares"][0]["depart_time"]
     for f in body["fares"]:
@@ -266,3 +267,44 @@ def test_vercel_entrypoint_serves_page_and_api(monkeypatch):
                 assert res.status == 200
     finally:
         server.shutdown()
+
+
+def test_serpapi_leg_details_and_return_flights():
+    class FakeResp:
+        status_code = 200
+        def __init__(self, data): self.data = data
+        def json(self): return self.data
+
+    class FakeSession:
+        def __init__(self): self.calls = []
+        def get(self, url, params, timeout):
+            self.calls.append(params)
+            return FakeResp({"other_flights": [{
+                "price": 1772, "total_duration": 1700, "booking_token": "b",
+                "layovers": [{"id": "GRU", "name": "Guarulhos", "duration": 230}],
+                "flights": [{"airline": "LATAM", "flight_number": "LA 3553", "duration": 80,
+                             "airplane": "Airbus A321", "legroom": "28 in", "overnight": True,
+                             "plane_and_crew_by": "Latam Airlines Brasil",
+                             "extensions": ["Wi-Fi for a fee", "Carbon emissions estimate: 66 kg"],
+                             "departure_airport": {"id": "CNF", "name": "Confins", "time": "2027-02-17 18:20"},
+                             "arrival_airport": {"id": "GRU", "name": "Guarulhos", "time": "2027-02-17 19:40"}}]}]})
+
+    session = FakeSession()
+    p = SerpApiProvider(api_key="k", session=session)
+    req = SearchRequest("YYJ", "CNF", date(2027, 2, 3), date(2027, 2, 17), currency="CAD")
+    [opt] = p.return_flights(req, "tok")
+    assert session.calls[0]["departure_token"] == "tok" and session.calls[0]["show_hidden"] == "true"
+    leg = opt.legs[0]
+    assert (leg.duration_minutes, leg.airplane, leg.legroom, leg.overnight) == (80, "Airbus A321", "28 in", True)
+    assert leg.operated_by == "Latam Airlines Brasil" and leg.extensions == ["Wi-Fi for a fee"]
+    assert opt.layover_details == [{"code": "GRU", "name": "Guarulhos", "duration_minutes": 230, "overnight": False}]
+    assert opt.booking_token == "b" and opt.price == 1772
+
+
+def test_returns_api_needs_token_and_uses_cache(monkeypatch):
+    from airline_searcher import web
+    monkeypatch.setenv("SEARCH_PROVIDER", "mock")
+    assert web.returns_api({})[0] == 400
+    status, body = web.returns_api({"token": "t", "from": "YYJ", "to": "CNF", "depart": "2027-02-03",
+                                    "return": "2027-02-17"})
+    assert status == 200 and body["fares"] and body["fares"][0]["legs"][0]["from"] == "CNF"

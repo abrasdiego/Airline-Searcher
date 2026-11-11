@@ -198,6 +198,44 @@ select { width: 100%; min-height: 48px; border-radius: 12px; background: var(--b
 .day[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .day .r { font-size: 10px; color: var(--faint); }
 
+.nearby-note { font-size: 12px; color: var(--muted); margin-top: -4px; }
+.nearby-note b { color: var(--accent); font-weight: 600; }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px;
+  background: var(--bg-2); border: 1px solid var(--line); grid-column: 1 / -1; cursor: pointer; }
+.toggle span small { display: block; color: var(--muted); font-size: 12px; }
+.toggle input { appearance: none; -webkit-appearance: none; width: 44px; height: 26px; border-radius: 999px; background: var(--raise);
+  border: 1px solid var(--line-strong); position: relative; flex: none; cursor: pointer; transition: background .15s; }
+.toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.toggle input:checked { background: rgba(108,196,255,.25); border-color: var(--accent); }
+.toggle input:checked::after { transform: translateX(18px); background: var(--accent); }
+.breakdown { display: grid; gap: 14px; }
+.bd-group { display: grid; gap: 8px; min-width: 0; }
+.bd-group h4 { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.bd-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.bd { flex: none; display: grid; gap: 1px; text-align: left; border: 1px solid var(--line); background: var(--bg-2); color: var(--ink);
+  border-radius: 12px; padding: 8px 11px; min-height: 44px; max-width: 260px; }
+.bd b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bd span { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bd[aria-pressed="true"] { border-color: var(--accent); background: rgba(108,196,255,.12); }
+.bd.route { max-width: none; }
+.bd.route b { font-family: var(--display); letter-spacing: .04em; overflow: visible; }
+.bd-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.bd-head p { margin: 0; font-size: 13px; color: var(--muted); }
+.linkish { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 13px; padding: 4px 0; }
+.f-more { border: 0; background: none; color: var(--accent); font-size: 12px; font-weight: 600; padding: 2px 0; display: inline-flex; gap: 4px; align-items: center; }
+.f-details { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 10px; }
+.leg { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 10px; }
+.leg .rail { position: relative; }
+.leg .rail::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: -4px; width: 2px; background: var(--line-strong); }
+.leg .rail::after { content: ""; position: absolute; left: 2px; top: 4px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--accent); background: var(--bg); }
+.leg-t { font-weight: 600; font-size: 14px; }
+.leg-t small { color: var(--muted); font-weight: 500; }
+.leg-m { font-size: 12px; color: var(--muted); }
+.leg-m .warn { color: var(--amber); }
+.lay { margin-left: 24px; font-size: 12px; color: var(--amber); padding: 6px 10px; border-radius: 8px; background: rgba(255,179,71,.08); border: 1px dashed rgba(255,179,71,.3); }
+.returns { display: grid; gap: 8px; }
+.ret { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.ret .pbtn { font-size: 16px; min-height: 40px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .toolbar .count { font-size: 13px; color: var(--muted); }
 .fares { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -321,6 +359,7 @@ footer a { color: var(--muted); }
         </div>
       </div>
 
+      <div class="nearby-note" id="nearby-note" aria-live="polite"></div>
       <div class="when row">
         <div class="field">
           <label class="lbl" for="start">Earliest departure</label>
@@ -365,6 +404,8 @@ footer a { color: var(--muted); }
               <select id="cabin"><option value="economy">Economy</option><option value="premium_economy">Premium economy</option><option value="business">Business</option><option value="first">First</option></select></div>
             <div class="field"><label class="lbl" for="stops">Stops</label>
               <select id="stops"><option value="">Any</option><option value="0">Nonstop only</option><option value="1">1 stop or fewer</option></select></div>
+            <label class="toggle" for="nearby"><span>Include nearby airports<small>Also search big airports within about 150 km of each city</small></span>
+              <input type="checkbox" id="nearby" checked></label>
             <div class="field"><label class="lbl" for="currency">Currency</label>
               <select id="currency"><option>USD</option><option>EUR</option><option>GBP</option><option>BRL</option><option>CAD</option><option>AUD</option><option>MXN</option><option>JPY</option><option>CHF</option><option>INR</option></select></div>
           </div>
@@ -577,7 +618,7 @@ function setPlace(side, place) {
   $(`${side}-code`).textContent = place ? (place.codes.includes(",") ? place.codes.split(",")[0] + "+" : place.codes) : "–";
   $(`${side}-input`).value = place ? place.label : "";
   $("error").hidden = true;
-  drawRoute(); updatePlan();
+  drawRoute(); updatePlan(); updateNearbyNote();
 }
 
 /* ================= world map (airport dots) ================= */
@@ -684,6 +725,41 @@ function drawRoute() {
   }
   if (!map.raf) map.raf = requestAnimationFrame(drawFrame);
 }
+function kmBetween(a, b) {
+  const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+// Useful alternatives near the chosen airports: large airports within 175 km and other international
+// airports within 120 km (small regional fields rarely help on longer trips). Biggest, then closest, first.
+function nearbyFor(place, other) {
+  if (!place || !S.ready) return [];
+  const base = place.codes.split(",").map((c) => S.byCode.get(c)).filter(Boolean);
+  if (!base.length) return [];
+  const taken = new Set([...place.codes.split(","), ...(other?.codes || "").split(",")]);
+  const room = Math.max(0, Math.min(3, 7 - place.codes.split(",").length));
+  return S.airports
+    .filter((a) => !taken.has(a.code) && (a.size === 2 || (a.size === 1 && /international/i.test(a.name))))
+    .map((a) => ({ a, km: Math.min(...base.map((b) => kmBetween(a, b))) }))
+    .filter((x) => x.km <= (x.a.size === 2 ? 175 : 120))
+    .sort((x, y) => (y.a.size - x.a.size) || (x.km - y.km))
+    .slice(0, room)
+    .map((x) => x.a);
+}
+function searchCodes(side) {
+  const place = S[side]; if (!place) return "";
+  if (!$("nearby").checked) return place.codes;
+  return [place.codes, ...nearbyFor(place, S[side === "from" ? "to" : "from"]).map((a) => a.code)].join(",");
+}
+function updateNearbyNote() {
+  const el = $("nearby-note");
+  if (!$("nearby").checked || !S.ready) { el.textContent = ""; return; }
+  const parts = ["from", "to"].map((side) => {
+    const extra = nearbyFor(S[side], S[side === "from" ? "to" : "from"]);
+    return extra.length ? `<b>${extra.map((a) => esc(a.code)).join(", ")}</b> near ${esc(codeTag(S[side]))}` : "";
+  }).filter(Boolean);
+  el.innerHTML = parts.length ? "Also searching " + parts.join(" · ") : "";
+}
 const codeTag = (p) => (p.codes.includes(",") ? p.short : p.codes);
 
 /* ================= form ================= */
@@ -722,7 +798,13 @@ function readQuery() {
   return {
     from: S.from?.codes || "", to: S.to?.codes || "", start: $("start").value, days: S.days, trip: S.trip,
     nights: S.nights, adults: +$("adults").value, cabin: $("cabin").value, stops: $("stops").value, currency: $("currency").value,
+    nearby: $("nearby").checked ? "1" : "0",
   };
+}
+// What is sent to the search: the chosen airports plus nearby ones when that option is on.
+function apiQuery(q) {
+  const { nearby, ...rest } = q;
+  return { ...rest, from: searchCodes("from") || q.from, to: searchCodes("to") || q.to };
 }
 function problem(q) {
   if (!q.from) return "Choose where you're flying from.";
@@ -740,6 +822,7 @@ function applyQuery(q) {
   if (q.days) setDays([7, 14, 21].includes(+q.days) ? +q.days : 14);
   if (q.nights) S.nights = Math.max(1, Math.min(+q.nights, S.days - 1));
   setTrip(q.trip === "one_way" ? "one_way" : "round_trip");
+  if (q.nearby != null) $("nearby").checked = String(q.nearby) !== "0";
   for (const k of ["adults", "cabin", "stops", "currency"]) if (q[k] != null && [...$(k).options].some((o) => o.value === String(q[k]))) $(k).value = q[k];
   updatePlan();
 }
@@ -751,6 +834,25 @@ function googleLink(q, depart, ret) {
   if (q.cabin !== "economy") text += ` ${q.cabin.replace("_", " ")}`;
   if (q.stops === "0") text += " nonstop";
   return "https://www.google.com/travel/flights?" + new URLSearchParams({ q: text, curr: q.currency, hl: "en" });
+}
+function demoLegs(f, day, startMin, r) {
+  const pts = [f.from_airport, ...f.layovers, f.to_airport];
+  const flying = f.duration_minutes - f.stops * 90;
+  let t = startMin; f.legs = []; f.layover_details = [];
+  const stamp = (m) => `${iso(addDays(parse(day), Math.floor(m / 1440)))} ${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+  for (let k = 0; k < pts.length - 1; k++) {
+    const len = Math.max(50, Math.round(flying / (pts.length - 1)));
+    f.legs.push({ airline: f.airlines[0], flight_number: `${f.airlines[0].slice(0, 2).toUpperCase()} ${100 + Math.floor(r() * 899)}`,
+      from: pts[k], to: pts[k + 1], departure: stamp(t), arrival: stamp(t + len), duration_minutes: len,
+      airplane: ["Airbus A321", "Boeing 787", "Boeing 737"][Math.floor(r() * 3)], legroom: ["30 in", "31 in", "28 in"][Math.floor(r() * 3)],
+      overnight: Math.floor(t / 1440) !== Math.floor((t + len) / 1440), extensions: ["In-seat USB outlet"] });
+    t += len;
+    if (k < pts.length - 2) { f.layover_details.push({ code: pts[k + 1], name: "", duration_minutes: 90 }); t += 90; }
+  }
+}
+function demoReturns(q, fare) {
+  const back = demoSearch({ ...q, from: q.to, to: q.from, start: fare.return_date, days: 1, trip: "one_way" });
+  return { currency: q.currency, fares: back.fares.slice(0, 8).map((f) => ({ ...f, price: fare.price, booking_url: fare.booking_url })) };
 }
 function demoSearch(q) {
   const hash = (s) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
@@ -786,6 +888,11 @@ function demoSearch(q) {
         arrive_day_offset: Math.floor(arrTotal / 1440), from_airport: q.from.split(",")[0], to_airport: q.to.split(",")[0],
         co2_kg: Math.round(co2t * (0.8 + r() * 0.45)), co2_typical_kg: co2t, booking_url: googleLink(q, iso(d), ret ? iso(ret) : null),
       });
+      const f = fares[fares.length - 1];
+      demoLegs(f, iso(d), depH * 60 + depM, r);
+      f.from_airport = q.from.split(",")[Math.floor(r() * q.from.split(",").length)];
+      f.legs[0].from = f.from_airport;
+      f.departure_token = ret ? "demo" : null;
     }
   }
   fares.sort((a, b) => a.price - b.price);
@@ -836,18 +943,18 @@ async function runSearch(e) {
   let data = null, failure = "";
   if (S.mode === "live") {
     try {
-      const res = await fetch("api/search?" + new URLSearchParams(q), { headers: { Accept: "application/json" } });
+      const res = await fetch("api/search?" + new URLSearchParams(apiQuery(q)), { headers: { Accept: "application/json" } });
       const body = await res.json();
       if (res.ok) data = body; else failure = body.error || "The search failed. Try again.";
     } catch (err) { failure = "Couldn't reach the search server. Check your connection and try again."; }
   } else {
     await new Promise((r) => setTimeout(r, reduceMotion ? 50 : 1200));
-    data = demoSearch(q);
+    data = demoSearch(apiQuery(q));
   }
   if (token !== searchToken) return;
   map.busy = false; $("go").disabled = false; $("go").classList.remove("busy"); $("go-text").textContent = "Find fares";
   if (failure) { $("results").innerHTML = `<div class="card empty">${esc(failure)}</div>`; return; }
-  S.data = data; S.dayFilter = null; S.shown = 10; S.nonstop = false; S.sort = "price";
+  S.data = data; S.dayFilter = null; S.shown = 10; S.sort = "price"; S.f = {}; S.lastQuery = apiQuery(q);
   renderResults();
 }
 
@@ -908,12 +1015,73 @@ function fareHtml(f, cur, i) {
       <div class="f-air">${esc((f.airlines || []).join(", ") || "Airline")} · ${esc(datesText(f))}</div>
       <div class="f-times">${times}</div>
       <div class="f-route">${esc(f.from_airport || "")} → ${esc(f.to_airport || "")} · ${dur(f.duration_minutes)} · ${via}</div>
-      <div class="f-tags">${f.nights ? `<span class="tag">${f.nights} nights</span>` : `<span class="tag">One-way</span>`}${co2 != null && co2 <= -5 ? `<span class="tag eco">${co2}% CO₂</span>` : ""}</div>
+      <div class="f-tags">${f.nights ? `<span class="tag">${f.nights} nights</span>` : `<span class="tag">One-way</span>`}${co2 != null && co2 <= -5 ? `<span class="tag eco">${co2}% CO₂</span>` : ""}
+        ${f.legs?.length ? `<button type="button" class="f-more" data-detail="${i}" aria-expanded="false">Flight details ▾</button>` : ""}</div>
     </div>
     <div class="f-price">${signHtml(f, cur)}
       <a class="pbtn" href="${esc(url)}" target="_blank" rel="noopener" aria-label="${esc(money(f.price, cur))}: book on Google Flights">${money(f.price, cur)}${ICON_OUT}</a>
     </div>
+    <div class="f-details" id="detail-${i}" hidden></div>
   </li>`;
+}
+
+const legTime = (s) => {
+  if (!s || s.length < 16) return { t: "", d: "" };
+  return { t: s.slice(11, 16), d: fmtDay(s.slice(0, 10), { weekday: "short", day: "numeric", month: "short" }) };
+};
+function legsHtml(f) {
+  const out = [];
+  (f.legs || []).forEach((l, k) => {
+    const a = legTime(l.departure), b = legTime(l.arrival);
+    const facts = [l.airplane, l.legroom && `${l.legroom} legroom`, l.travel_class, l.operated_by && `Operated by ${l.operated_by}`].filter(Boolean).map(esc).join(" · ");
+    const warn = [l.overnight && "Overnight", l.often_delayed && "Often delayed 30+ min"].filter(Boolean).join(" · ");
+    out.push(`<div class="leg"><span class="rail" aria-hidden="true"></span><div>
+      <div class="leg-t">${esc(a.t)} ${esc(l.from)} → ${esc(b.t)} ${esc(l.to)} <small>· ${esc(a.d)} · ${dur(l.duration_minutes)}</small></div>
+      <div class="leg-m">${esc(l.airline)} ${esc(l.flight_number)}${facts ? " · " + facts : ""}${warn ? ` · <span class="warn">${esc(warn)}</span>` : ""}</div>
+      ${l.extensions?.length ? `<div class="leg-m">${l.extensions.map(esc).join(" · ")}</div>` : ""}
+    </div></div>`);
+    const lay = (f.layover_details || [])[k];
+    if (lay && k < f.legs.length - 1) out.push(`<div class="lay">${dur(lay.duration_minutes)} layover in ${esc(lay.name || lay.code)} (${esc(lay.code)})${lay.overnight ? " · overnight" : ""}</div>`);
+  });
+  return out.join("");
+}
+function returnsHtml(data, cur) {
+  if (!data.fares?.length) return `<p class="leg-m">No return flights were found for this outbound.</p>`;
+  return `<div class="returns">${data.fares.map((f) => {
+    const legs = f.legs || [], a = legTime(legs[0]?.departure), b = legTime(legs[legs.length - 1]?.arrival);
+    const via = f.stops === 0 ? "Nonstop" : `${f.stops} stop${f.stops > 1 ? "s" : ""}${f.layovers?.length ? " via " + f.layovers.join(", ") : ""}`;
+    const url = /^https:\/\//.test(f.booking_url || "") ? f.booking_url : googleLink(readQuery(), f.depart_date, f.return_date);
+    return `<div class="ret"><div><div class="leg-t">${esc(a.t)} → ${esc(b.t)}${f.arrive_day_offset ? `<sup>+${f.arrive_day_offset}</sup>` : ""} <small>· ${esc(a.d)}</small></div>
+      <div class="leg-m">${esc((f.airlines || []).join(", "))} · ${dur(f.duration_minutes)} · ${esc(via)}</div></div>
+      <a class="pbtn" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Round trip ${esc(money(f.price, cur))} on Google Flights">${money(f.price, cur)}${ICON_OUT}</a></div>`;
+  }).join("")}</div><p class="leg-m">Prices are for the whole round trip.</p>`;
+}
+async function toggleDetails(btn) {
+  const i = +btn.dataset.detail, box = $(`detail-${i}`), f = S.visible[i];
+  const open = box.hidden;
+  box.hidden = !open; btn.setAttribute("aria-expanded", String(open)); btn.textContent = open ? "Hide details ▴" : "Flight details ▾";
+  if (!open || box.dataset.ready) return;
+  box.dataset.ready = "1";
+  const canReturn = f.return_date && f.departure_token;
+  box.innerHTML = `<div class="lbl">Outbound · ${esc(fmtDay(f.depart_date))}</div>${legsHtml(f)}
+    ${canReturn ? `<div><button type="button" class="ghost" data-returns="${i}">See return flights for ${esc(fmtDay(f.return_date))}</button>
+      <p class="leg-m" style="margin:6px 0 0">${S.mode === "live" ? "Uses 1 search from your quota." : "Demo data."}</p></div>` : ""}`;
+}
+async function loadReturns(btn) {
+  const i = +btn.dataset.returns, f = S.visible[i], d = S.data, cur = d.currency;
+  const holder = btn.parentElement;
+  holder.innerHTML = `<p class="loading-text">Loading return flights…</p>`;
+  let data;
+  if (S.mode === "live") {
+    try {
+      const params = { token: f.departure_token, from: d.origin, to: d.destination, depart: f.depart_date, return: f.return_date,
+        adults: d.adults, cabin: d.cabin || "economy", currency: cur };
+      const res = await fetch("api/returns?" + new URLSearchParams(params), { headers: { Accept: "application/json" } });
+      data = await res.json();
+      if (!res.ok) { holder.innerHTML = `<p class="error">${esc(data.error || "Couldn't load return flights.")}</p>`; return; }
+    } catch (e) { holder.innerHTML = `<p class="error">Couldn't reach the search server.</p>`; return; }
+  } else data = demoReturns(S.lastQuery, f);
+  holder.innerHTML = `<div class="lbl" style="margin-bottom:8px">Return · ${esc(fmtDay(f.return_date))}</div>${returnsHtml(data, cur)}`;
 }
 
 function sparkline(hist, cur) {
@@ -993,12 +1161,12 @@ function renderResults() {
           ${c.return_date ? `<span class="r">back ${fmtDay(c.return_date, { day: "numeric", month: "short" })}</span>` : ""}
         </button>`).join("")}</div>
     </div>
+    <div class="card breakdown" id="breakdown"></div>
     <div class="toolbar">
-      <div class="chips" role="group" aria-label="Sort and filter">
+      <div class="chips" role="group" aria-label="Sort">
         <button type="button" class="chip" data-sort="price" aria-pressed="true">Cheapest</button>
         <button type="button" class="chip" data-sort="duration" aria-pressed="false">Fastest</button>
         <button type="button" class="chip" data-sort="depart" aria-pressed="false">Earliest</button>
-        <button type="button" class="chip" id="nonstop" aria-pressed="false">Nonstop</button>
       </div>
       <span class="count" id="count"></span>
     </div>
@@ -1017,22 +1185,70 @@ function renderResults() {
     r.querySelectorAll("[data-sort]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     renderFares();
   }));
-  $("nonstop").addEventListener("click", (e) => { S.nonstop = !S.nonstop; S.shown = 10; e.currentTarget.setAttribute("aria-pressed", String(S.nonstop)); renderFares(); });
-  $("show-more").addEventListener("click", () => { S.shown += 10; renderFares(); });
+  $("show-more").addEventListener("click", () => { S.shown += 20; renderFares(); });
+  $("fares").addEventListener("click", (e) => {
+    const det = e.target.closest("[data-detail]"); if (det) { toggleDetails(det); return; }
+    const ret = e.target.closest("[data-returns]"); if (ret) loadReturns(ret);
+  });
+  $("breakdown").addEventListener("click", (e) => {
+    if (e.target.closest("#clear-filters")) { S.f = {}; S.shown = 10; renderFares(); return; }
+    const b = e.target.closest(".bd"); if (!b) return;
+    const k = b.dataset.k, v = b.dataset.v;
+    S.f[k] = S.f[k] === v ? undefined : v; S.shown = 10;
+    renderFares();
+  });
 }
 
+const FILTERS = {
+  airline: { title: "Airlines", of: (f) => f.airlines || [] },
+  stops: { title: "Stops", of: (f) => [f.stops === 0 ? "Nonstop" : f.stops === 1 ? "1 stop" : `${f.stops} stops`] },
+  route: { title: "Routes (connections)", of: (f) => [[f.from_airport, ...(f.layovers || []), f.to_airport].filter(Boolean).join(" › ")] },
+  dep: { title: "Departing from", of: (f) => [f.from_airport || ""] },
+  arr: { title: "Arriving at", of: (f) => [f.to_airport || ""] },
+};
+function matches(f, skip) {
+  if (S.dayFilter && f.depart_date !== S.dayFilter) return false;
+  for (const [k, v] of Object.entries(S.f)) if (v !== undefined && k !== skip && !FILTERS[k].of(f).includes(v)) return false;
+  return true;
+}
+function renderBreakdown() {
+  const d = S.data, cur = d.currency, all = d.fares.filter((f) => !S.dayFilter || f.depart_date === S.dayFilter);
+  const groups = Object.entries(FILTERS).map(([k, def]) => {
+    const stats = new Map();
+    for (const f of d.fares) {
+      if (!matches(f, k)) continue;
+      for (const v of def.of(f)) {
+        if (!v) continue;
+        const s = stats.get(v) || { n: 0, min: Infinity };
+        s.n++; s.min = Math.min(s.min, f.price); stats.set(v, s);
+      }
+    }
+    if (S.f[k] && !stats.has(S.f[k])) stats.set(S.f[k], { n: 0, min: Infinity });
+    if ((k === "dep" || k === "arr") && stats.size < 2) return "";
+    const items = [...stats.entries()].sort((a, b) => a[1].min - b[1].min);
+    return `<div class="bd-group"><h4>${def.title} · ${items.length}</h4><div class="bd-chips">${items.map(([v, st]) => `
+      <button type="button" class="bd${k === "route" ? " route" : ""}" data-k="${k}" data-v="${esc(v)}" aria-pressed="${S.f[k] === v}">
+        <b>${esc(k === "dep" || k === "arr" ? `${v} ${S.byCode.get(v)?.city || ""}` : v)}</b><span>${st.n ? `from ${money(st.min, cur)} · ${st.n}` : "none"}</span></button>`).join("")}</div></div>`;
+  }).join("");
+  const airlines = new Set(all.flatMap((f) => f.airlines || [])).size;
+  const routes = new Set(all.map((f) => FILTERS.route.of(f)[0])).size;
+  const active = Object.values(S.f).some((v) => v !== undefined);
+  $("breakdown").innerHTML = `<div class="bd-head"><h3 style="margin:0">Every option found</h3>
+      <p>${all.length} itineraries · ${airlines} airline${airlines === 1 ? "" : "s"} · ${routes} route${routes === 1 ? "" : "s"}${active ? ` · <button type="button" class="linkish" id="clear-filters">Clear filters</button>` : ""}</p></div>${groups}`;
+}
 function renderFares() {
   const d = S.data, cur = d.currency;
-  let list = d.fares.slice();
-  if (S.dayFilter) list = list.filter((f) => f.depart_date === S.dayFilter);
-  if (S.nonstop) list = list.filter((f) => f.stops === 0);
+  renderBreakdown();
+  let list = d.fares.filter((f) => matches(f));
   const key = { price: (f) => f.price, duration: (f) => f.duration_minutes || 1e9, depart: (f) => f.depart_date + (f.depart_time || "") };
   list.sort((a, b) => (key[S.sort](a) > key[S.sort](b) ? 1 : key[S.sort](a) < key[S.sort](b) ? -1 : a.price - b.price));
   const shown = list.slice(0, S.shown);
+  S.visible = shown;
   $("fares").innerHTML = shown.length ? shown.map((f, i) => fareHtml(f, cur, i)).join("")
-    : `<li class="card empty">No fares match. ${S.nonstop ? "Turn off Nonstop" : "Pick another date"} to see more.</li>`;
-  $("count").textContent = `${shown.length} of ${list.length} fares${S.dayFilter ? " · " + fmtDay(S.dayFilter, { day: "numeric", month: "short" }) : ""}`;
+    : `<li class="card empty">No fares match these filters. Clear a filter to see more.</li>`;
+  $("count").textContent = `Showing ${shown.length} of ${list.length}${S.dayFilter ? " · " + fmtDay(S.dayFilter, { day: "numeric", month: "short" }) : ""}`;
   $("show-more").hidden = list.length <= S.shown;
+  $("show-more").textContent = `Show more (${list.length - shown.length} left)`;
 }
 
 /* ================= share, url, recent ================= */
@@ -1083,6 +1299,7 @@ $("ow").addEventListener("click", () => setTrip("one_way"));
 $("n-minus").addEventListener("click", () => { S.nights = Math.max(1, S.nights - 1); updatePlan(); });
 $("n-plus").addEventListener("click", () => { S.nights = Math.min(S.days - 1, S.nights + 1); updatePlan(); });
 ["start", "adults", "cabin", "stops", "currency"].forEach((id) => $(id).addEventListener("change", updatePlan));
+$("nearby").addEventListener("change", () => { store.set("fw-nearby", $("nearby").checked); updateNearbyNote(); });
 $("start").min = iso(today);
 $("form").addEventListener("submit", runSearch);
 let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { sizeMap(); drawRoute(); }, 120); });
@@ -1093,6 +1310,7 @@ let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT =
   renderIdeas(); renderRecent(); updatePlan();
   await Promise.all([loadAirports(), detectMode()]);
   map.dots = null; drawRoute();
+  $("nearby").checked = store.get("fw-nearby", true);
   let params = {};
   try { params = Object.fromEntries(new URLSearchParams(location.search)); } catch (e) {}
   if (params.from && params.to) { applyQuery(params); runSearch(); return; }

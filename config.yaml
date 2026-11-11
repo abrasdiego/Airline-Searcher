@@ -24,7 +24,7 @@ searches:
     currency: CAD
     # max_stops: 1             # left off: this route usually needs 2 stops
     # max_price: 2500          # hide anything more expensive
-    top_n: 5                   # how many of the cheapest options to list
+    top_n: 10                  # how many of the cheapest options to list
 
   # Add more routes by repeating the block:
   # - name: Weekend in Paris

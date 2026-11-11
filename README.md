@@ -111,6 +111,17 @@ A search page that works well on a phone. It searches every date in your travel 
 - **Green / red sign above every price:** green when it's below the usual price for the route,
   red when it's above, with the difference in money.
 - **Tap a price** to open Google Flights with the same route, dates and passengers, ready to book.
+- **Every option, not just the top few:** each date includes the flights Google Flights hides by default
+  (checked on Victoria → Belo Horizonte: 8 itineraries per date without them, 42 with them, for the same one
+  search). All of them are listed, 20 at a time.
+- **Nearby airports** (on by default): also searches big airports within about 150 km, e.g. YVR, SEA and
+  BLI for Victoria. Turn it off under the options.
+- **Every option found:** a breakdown by airline, stops, connection route and airport, each with its
+  cheapest price and number of itineraries. Tap one to filter.
+- **Flight details:** every leg with flight number, aircraft, legroom, operating airline, amenities,
+  overnight and often-delayed warnings, and each layover's length.
+- **Return flights:** for round trips, "See return flights" lists the return choices for that outbound
+  (round-trip prices). This uses one search.
 - **Share** a search as a link. Recent searches are remembered on your device.
 
 The page (`web/index.html`) needs a small server that keeps your API key secret
@@ -135,6 +146,10 @@ Run it on your own computer instead:
 SERPAPI_API_KEY=... python -m airline_searcher.web      # http://localhost:8000
 SEARCH_PROVIDER=mock python -m airline_searcher.web     # fake prices, no key needed
 ```
+
+To check what the flight data source returns (for example after SerpApi changes something), run
+**Actions → Inspect flight data**. It prints the structure and counts of real responses, never the key, and
+uses about 5 searches.
 
 The airport list comes from [OurAirports](https://ourairports.com/data/) (public domain). To refresh
 it, see `scripts/build_airports.py`.
