@@ -56,7 +56,10 @@ def health(check: bool = False) -> dict:
         body["account"] = account
         if not account["ok"]:
             body["live"] = False
-            body["help"] = f"SerpApi didn't accept the key ({account['error'].rstrip('.')}). Re-enter SERPAPI_API_KEY in Vercel and redeploy."
+            from airline_searcher.providers.serpapi import describe_key
+            body["help"] = (f"SerpApi didn't accept the key ({account['error'].rstrip('.')}); "
+                            f"{describe_key(find_api_key())}. Copy it again from serpapi.com/manage-api-key, "
+                            "update SERPAPI_API_KEY in Vercel and redeploy.")
         elif account.get("searches_left") == 0:
             body["live"] = False
             body["help"] = "Your SerpApi account has no searches left this month."

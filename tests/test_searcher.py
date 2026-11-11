@@ -349,3 +349,13 @@ def test_account_status_checks_key_without_leaking_it(monkeypatch):
     monkeypatch.setattr(serpapi.requests, "get", lambda url, params, timeout: Resp(401, {"error": "Invalid API key."}))
     bad = serpapi.account_status("SECRET")
     assert bad["ok"] is False and "SECRET" not in str(bad)
+
+
+def test_clean_key_fixes_common_paste_mistakes():
+    from airline_searcher.providers.serpapi import clean_key, describe_key
+    k = "f" * 64
+    for pasted in (k, f"  {k}\n", f'"{k}"', f"'{k}'", f"api_key={k}", f"https://serpapi.com/search?q=x&api_key={k}",
+                   f"Your Private API Key: {k}"):
+        assert clean_key(pasted) == k, pasted
+    assert "64 letters" in describe_key(k) and k not in describe_key(k)
+    assert "12 characters" in describe_key("abc123abc123")
