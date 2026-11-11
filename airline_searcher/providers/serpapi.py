@@ -32,14 +32,35 @@ def _normalize(name: str) -> str:
 ACCEPTED_NAMES = {"SERPAPIAPIKEY", "SERPAPIKEY", "SERPAPI"}
 
 
+def clean_key(value: str) -> str:
+    """Undo common copy-paste mistakes: spaces, quotes, an 'api_key=' prefix or a whole URL."""
+    value = value.strip().strip("'\"`").strip()
+    match = re.search(r"api_key=([A-Za-z0-9]+)", value)
+    if match:
+        return match.group(1)
+    hexes = re.findall(r"[0-9a-fA-F]{64}", value)
+    if len(hexes) == 1:
+        return hexes[0]
+    return value
+
+
+def describe_key(value: Optional[str]) -> str:
+    """A safe description of a key (never the key itself), to help spot a bad paste."""
+    if not value:
+        return "no key is set"
+    shape = "64 letters and digits, like a SerpApi key" if re.fullmatch(r"[0-9a-fA-F]{64}", value) else (
+        f"{len(value)} characters long; SerpApi keys are 64 letters and digits")
+    return f"the saved key is {shape}"
+
+
 def find_api_key() -> Optional[str]:
     """SERPAPI_API_KEY, also accepting close variants (SERPAPI_KEY, SERP_API_KEY, stray spaces)."""
-    exact = os.environ.get("SERPAPI_API_KEY", "").strip()
+    exact = clean_key(os.environ.get("SERPAPI_API_KEY", ""))
     if exact:
         return exact
     for name, value in os.environ.items():
-        if _normalize(name) in ACCEPTED_NAMES and value.strip():
-            return value.strip()
+        if _normalize(name) in ACCEPTED_NAMES and clean_key(value):
+            return clean_key(value)
     return None
 
 
