@@ -202,7 +202,8 @@ def query_from_url(url: str) -> dict[str, str]:
     return {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
 
 
-STATIC = {"/": "index.html", "/index.html": "index.html", "/airports.json": "airports.json"}
+STATIC = {"/": "index.html", "/index.html": "index.html", "/airports.json": "airports.json",
+          "/web/index.html": "index.html", "/web/airports.json": "airports.json"}
 TYPES = {".html": "text/html; charset=utf-8", ".json": "application/json"}
 
 

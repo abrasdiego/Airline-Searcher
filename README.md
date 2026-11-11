@@ -117,6 +117,7 @@ The page (`web/index.html`) needs a small server that keeps your API key secret
 (`api/search.py`). It's set up for [Vercel](https://vercel.com), which is free for personal use:
 
 1. Sign in at [vercel.com/new](https://vercel.com/new) with GitHub and **import** this repository.
+   Leave the settings as they are (the Framework Preset can be "Python" or "Other"; both work).
 2. Under **Environment Variables** add `SERPAPI_API_KEY`.
 3. Click **Deploy**. Your site is at `https://<project-name>.vercel.app`. On your phone,
    use "Add to Home Screen" to open it like an app.
