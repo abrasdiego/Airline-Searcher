@@ -8,26 +8,22 @@ settings:
   history_file: data/history.json
 
 searches:
-  - name: Lisbon trip
-    origin: JFK                # 3-letter IATA airport (JFK) or city code (NYC)
-    destination: LIS
+  - name: Brazil trip
+    origin: YYJ                # Victoria, BC
+    destination: CNF           # Belo Horizonte (Confins)
 
-    # The travel window. Use a fixed window...
-    window_start: 2027-01-10
-    window_days: 14            # or: window_end: 2027-01-23
-    # ...or a rolling one that moves with today's date:
-    # window_starts_in_days: 60
-    # window_days: 14
-
+    # Leave any day Feb 1–7, 2027 and come back 14 nights later (Feb 15–21).
+    window_start: 2027-02-01
+    window_end: 2027-02-21
     trip_type: round_trip      # round_trip | one_way
-    nights: 7                  # or a range: {min: 5, max: 9}
+    nights: 14                 # or a range: {min: 12, max: 14}
     return_within_window: true # return flight must also be inside the window
 
     adults: 1
     cabin: economy             # economy | premium_economy | business | first
-    currency: USD
-    max_stops: 1               # omit for any number of stops
-    # max_price: 900           # hide anything more expensive
+    currency: CAD
+    # max_stops: 1             # left off: this route usually needs 2 stops
+    # max_price: 2500          # hide anything more expensive
     top_n: 5                   # how many of the cheapest options to list
 
   # Add more routes by repeating the block:
