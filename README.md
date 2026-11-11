@@ -85,7 +85,9 @@ Any SMTP server works. For **Gmail**, turn on 2-Step Verification and create an
    `SERPAPI_API_KEY` (or `DUFFEL_ACCESS_TOKEN`), `SMTP_USERNAME`, `SMTP_PASSWORD` and `EMAIL_TO`
    (plus `SMTP_HOST`/`SMTP_PORT` if you're not using Gmail).
 2. Merge to the default branch. The workflow in `.github/workflows/daily-flight-search.yml`
-   runs every day at 11:17 UTC. Change the `cron` line to pick another time.
+   emails you every day at **8:00 AM Pacific time**, all year round (it handles daylight-saving
+   time and never sends twice in a day). To change the time, edit the two `cron` lines and the
+   `TZ` / hour check in the "Wait for 8 AM Pacific" step.
 3. To test it right away, open **Actions → Daily flight search → Run workflow**.
 
 Price history is kept in the Actions cache, so the email can show what changed since the
@@ -94,14 +96,22 @@ emails stop, re-enable the workflow from the Actions tab.
 
 ## 5. The search website (Fare Watch)
 
-A simple mobile-friendly page where you search on demand: enter From, To, the window,
-nights, stops and adults, and it lists the 10 cheapest fares in the window.
+A search page that works well on a phone. It searches every date in your travel window at once.
 
+- **Airport search:** type a city, airport name, code or country and pick from the best matches
+  (4,000+ airports with scheduled flights). Big cities also offer "all airports" (New York = JFK, EWR, LGA).
+- **World map:** drawn from the location of every airport, with your route's arc, distance and
+  nonstop flight time.
+- **Best deal card** with a "Book on Google Flights" button and the saving against the usual price.
+- **Price check:** whether prices are low, typical or high right now, using Google Flights' typical range.
+- **Price trend** for the best dates over the last couple of months.
+- **Cheapest by departure date:** tap a day to see only its fares.
+- **Fare list:** airline logo, times, duration, stops and layovers, and a CO₂ badge when emissions
+  are lower than usual. Sort by cheapest, fastest or earliest, or show nonstop only.
+- **Green / red sign above every price:** green when it's below the usual price for the route,
+  red when it's above, with the difference in money.
 - **Tap a price** to open Google Flights with the same route, dates and passengers, ready to book.
-- **The sign above each price** is green ("Below average") when the fare is at or under the usual
-  price for that route, and red ("Above average") when it's over. The usual price is Google Flights'
-  typical price range for the route (the middle of it). When Google doesn't report one, it's the
-  average of all fares found in the search.
+- **Share** a search as a link. Recent searches are remembered on your device.
 
 The page (`web/index.html`) needs a small server that keeps your API key secret
 (`api/search.py`). It's set up for [Vercel](https://vercel.com), which is free for personal use:
@@ -111,9 +121,12 @@ The page (`web/index.html`) needs a small server that keeps your API key secret
 3. Click **Deploy**. Your site is at `https://<project-name>.vercel.app`. On your phone,
    use "Add to Home Screen" to open it like an app.
 
-Each search uses one API search per date combination (7 for a 2-week window with 7 nights,
-14 one-way). The site checks at most 14 per search; change that with the `MAX_WEB_COMBINATIONS`
-environment variable. Anyone who has your site's link can search with your quota.
+The top-right badge says **Live prices** when the key is set, and **Demo prices** otherwise.
+
+Each search uses one SerpApi search per date (7 for a 2-week window with 7-night stays) and checks
+at most 14 dates (`MAX_WEB_COMBINATIONS`). Identical searches within 30 minutes reuse the saved
+results (`SEARCH_CACHE_SECONDS`), so they don't use your quota. Anyone who has your site's link can
+search with your quota.
 
 Run it on your own computer instead:
 
@@ -121,6 +134,9 @@ Run it on your own computer instead:
 SERPAPI_API_KEY=... python -m airline_searcher.web      # http://localhost:8000
 SEARCH_PROVIDER=mock python -m airline_searcher.web     # fake prices, no key needed
 ```
+
+The airport list comes from [OurAirports](https://ourairports.com/data/) (public domain). To refresh
+it, see `scripts/build_airports.py`.
 
 ## Running it yourself instead (cron)
 

@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Email error: {exc} (use --no-email to skip sending)", file=sys.stderr)
             return 2
 
-    results = [run_search(s, provider, today, config.settings.max_requests_per_search)
+    results = [run_search(s, provider, today, config.settings.max_requests_per_search, workers=4)
                for s in config.searches]
 
     history = History(None if args.no_history else config.settings.history_file)

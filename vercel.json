@@ -1,11 +1,13 @@
 {
   "functions": {
-    "api/search.py": {
-      "maxDuration": 60,
-      "includeFiles": "airline_searcher/**"
-    }
+    "api/search.py": { "maxDuration": 60, "includeFiles": "airline_searcher/**" },
+    "api/health.py": { "includeFiles": "airline_searcher/**" }
   },
   "rewrites": [
-    { "source": "/", "destination": "/web/index.html" }
+    { "source": "/", "destination": "/web/index.html" },
+    { "source": "/airports.json", "destination": "/web/airports.json" }
+  ],
+  "headers": [
+    { "source": "/airports.json", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] }
   ]
 }

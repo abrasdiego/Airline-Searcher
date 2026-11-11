@@ -11,7 +11,8 @@ CABIN_WORDS = {"premium_economy": "premium economy", "business": "business class
 
 def google_flights_link(req: SearchRequest) -> str:
     """Google Flights page for this route, dates, passengers and cabin."""
-    q = f"Flights from {req.origin} to {req.destination} on {req.depart_date.isoformat()}"
+    origin, destination = req.origin.split(",")[0], req.destination.split(",")[0]
+    q = f"Flights from {origin} to {destination} on {req.depart_date.isoformat()}"
     q += f" through {req.return_date.isoformat()}" if req.return_date else " one way"
     if req.adults > 1:
         q += f" for {req.adults} adults"

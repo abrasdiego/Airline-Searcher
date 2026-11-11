@@ -2,8 +2,12 @@ name: Daily flight search
 
 on:
   schedule:
-    - cron: "17 11 * * *"   # every day at 11:17 UTC — change to suit your time zone
-  workflow_dispatch: {}      # lets you run it by hand from the Actions tab
+    # The email goes out at 8:00 AM Pacific time. GitHub schedules run in UTC, so there are two
+    # triggers (one for daylight-saving time, one for standard time). The "Wait for 8 AM Pacific"
+    # step below keeps the right one, waits until 8:00, and makes sure only one email a day is sent.
+    - cron: "25 14 * * *"   # 7:25 AM PDT (Mar–Nov)
+    - cron: "25 15 * * *"   # 7:25 AM PST (Nov–Mar)
+  workflow_dispatch: {}      # run it by hand from the Actions tab (sends right away)
 
 permissions:
   contents: read
@@ -35,7 +39,32 @@ jobs:
           key: price-history-${{ github.run_id }}
           restore-keys: price-history-
 
+      - name: Wait for 8 AM Pacific
+        id: timing
+        env:
+          TZ: America/Los_Angeles
+          EVENT: ${{ github.event_name }}
+        run: |
+          today=$(date +%F)
+          if [ "$EVENT" != "schedule" ]; then
+            echo "Started by hand: sending now."; echo "send=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$(cat data/last-sent 2>/dev/null)" = "$today" ]; then
+            echo "Today's email was already sent."; echo "send=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          hour=$((10#$(date +%H))); minute=$((10#$(date +%M)))
+          if [ "$hour" -eq 7 ]; then
+            wait=$(( (59 - minute) * 60 + 60 - 10#$(date +%S) - 15 ))   # start ~15s before 8:00
+            [ "$wait" -gt 0 ] && echo "Waiting ${wait}s until 8:00 AM Pacific" && sleep "$wait"
+            echo "send=true" >> "$GITHUB_OUTPUT"
+          elif [ "$hour" -eq 8 ] || { [ "$hour" -eq 9 ] && [ "$minute" -lt 30 ]; }; then
+            echo "GitHub started late; sending now."; echo "send=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "This is the other time zone's trigger; nothing to do."; echo "send=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Search flights and email results
+        if: steps.timing.outputs.send == 'true'
         env:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           DUFFEL_ACCESS_TOKEN: ${{ secrets.DUFFEL_ACCESS_TOKEN }}
@@ -45,17 +74,19 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: python -m airline_searcher --config config.yaml --save-html report.html -v
+        run: |
+          python -m airline_searcher --config config.yaml --save-html report.html -v
+          mkdir -p data && TZ=America/Los_Angeles date +%F > data/last-sent
 
       - name: Save price history
-        if: always()
+        if: always() && steps.timing.outputs.send == 'true'
         uses: actions/cache/save@v4
         with:
           path: data
           key: price-history-${{ github.run_id }}
 
       - name: Keep the report
-        if: always()
+        if: always() && steps.timing.outputs.send == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: flight-report

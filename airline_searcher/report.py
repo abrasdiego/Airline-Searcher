@@ -90,18 +90,34 @@ def _section(result: SearchResult, history: History, today: date) -> tuple[str, 
 
         # Top N overall
         html.append(f'<h3 style="font-size:15px;margin:12px 0 0">Top {len(result.top)} cheapest</h3>')
+        average, source = result.route_average()
+        if average is not None:
+            what = "typical Google Flights price" if source == "typical" else "average of today's fares"
+            html.append(f'<div style="color:#6b7280;font-size:13px">Usual price for this route: '
+                        f'<b style="color:#111827">{money(average, best.currency)}</b> ({what})</div>')
+            text.append(f"Usual price for this route: {money(average, best.currency)} ({what})")
         html.append(f'<table {TABLE}><tr><th {TH}>Price</th><th {TH}>Dates</th><th {TH}>Airline</th>'
-                    f'<th {TH}>Stops</th><th {TH}>Duration</th><th {TH}></th></tr>')
+                    f'<th {TH}>Stops</th><th {TH}>Duration</th></tr>')
         text.append(f"\nTop {len(result.top)} cheapest:")
         for opt in result.top:
-            link = (f'<a href="{escape(opt.booking_url)}">view</a>' if opt.booking_url else "")
             airline = ", ".join(opt.airlines) or "–"
-            html.append(f'<tr><td {TD}><b>{money(opt.price, opt.currency)}</b></td>'
+            price = money(opt.price, opt.currency)
+            if opt.booking_url:
+                price = (f'<a href="{escape(opt.booking_url)}" style="color:#0b5cd5;text-decoration:none">'
+                         f'{price}&nbsp;&#8599;</a>')
+            sign, sign_text = "", ""
+            if average is not None:
+                below = opt.price <= average
+                sign = (f'<div style="display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;'
+                        f'border-radius:999px;margin-bottom:3px;'
+                        f'color:{"#11805a" if below else "#c3362b"};background:{"#e2f4ec" if below else "#fbe8e6"}">'
+                        f'&#9679; {"Below" if below else "Above"} average</div><br>')
+                sign_text = f"  ({'below' if below else 'above'} average)"
+            html.append(f'<tr><td {TD}>{sign}<b>{price}</b></td>'
                         f'<td {TD}>{escape(dates_label(opt))}</td><td {TD}>{escape(airline)}</td>'
-                        f'<td {TD}>{stops_label(opt.stops)}</td><td {TD}>{duration(opt.duration_minutes)}</td>'
-                        f'<td {TD}>{link}</td></tr>')
+                        f'<td {TD}>{stops_label(opt.stops)}</td><td {TD}>{duration(opt.duration_minutes)}</td></tr>')
             text.append(f"  {money(opt.price, opt.currency):>12}  {dates_label(opt)}  {airline}  "
-                        f"{stops_label(opt.stops)}  {duration(opt.duration_minutes)}")
+                        f"{stops_label(opt.stops)}  {duration(opt.duration_minutes)}{sign_text}")
         html.append("</table>")
 
         # Price calendar: cheapest per date combination
