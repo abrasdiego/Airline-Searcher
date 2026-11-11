@@ -15,6 +15,16 @@ class Leg:
     to_airport: str
     departure: str  # local time as reported by the provider, e.g. "2026-12-01 08:15"
     arrival: str
+    duration_minutes: Optional[int] = None
+    airplane: Optional[str] = None
+    legroom: Optional[str] = None
+    travel_class: Optional[str] = None
+    overnight: bool = False
+    often_delayed: bool = False
+    from_name: Optional[str] = None
+    to_name: Optional[str] = None
+    operated_by: Optional[str] = None
+    extensions: list = field(default_factory=list)   # amenities, e.g. "Wi-Fi for a fee"
 
 
 @dataclass
@@ -36,6 +46,11 @@ class FlightOption:
     typical_high: Optional[float] = None
     airline_logo: Optional[str] = None
     layovers: list[str] = field(default_factory=list)       # airport codes of connections
+    # [{"code", "name", "duration_minutes", "overnight"}] in order
+    layover_details: list[dict] = field(default_factory=list)
+    # Google Flights tokens: fetch the return flights for this outbound / the booking options
+    departure_token: Optional[str] = None
+    booking_token: Optional[str] = None
     co2_kg: Optional[int] = None                            # this itinerary
     co2_typical_kg: Optional[int] = None                    # typical for the route
     # Route insights for the search this option came from (shared by its options):

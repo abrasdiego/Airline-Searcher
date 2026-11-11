@@ -120,6 +120,19 @@ def _section(result: SearchResult, history: History, today: date) -> tuple[str, 
                         f"{stops_label(opt.stops)}  {duration(opt.duration_minutes)}{sign_text}")
         html.append("</table>")
 
+        # Every airline found, cheapest first
+        by_airline: dict[str, float] = {}
+        for o in result.options:
+            for name in o.airlines or ["Unknown"]:
+                by_airline[name] = min(by_airline.get(name, o.price), o.price)
+        routes = {"-".join([o.legs[0].from_airport] + [leg.to_airport for leg in o.legs]) for o in result.options if o.legs}
+        airline_list = ", ".join(f"{escape(n)} ({money(p, best.currency)})"
+                                 for n, p in sorted(by_airline.items(), key=lambda x: x[1]))
+        html.append(f'<div style="color:#6b7280;font-size:13px;margin:-8px 0 16px">{len(result.options)} itineraries · '
+                    f'{len(routes)} routes · airlines from cheapest: {airline_list}</div>')
+        text.append(f"\n{len(result.options)} itineraries, {len(routes)} routes. Airlines from cheapest: "
+                    + ", ".join(f"{n} ({money(p, best.currency)})" for n, p in sorted(by_airline.items(), key=lambda x: x[1])))
+
         # Price calendar: cheapest per date combination
         html.append('<h3 style="font-size:15px;margin:12px 0 0">Cheapest price per date</h3>')
         html.append(f'<table {TABLE}><tr><th {TH}>Dates</th><th {TH}>Price</th>'

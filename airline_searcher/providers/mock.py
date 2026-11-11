@@ -36,7 +36,7 @@ class MockProvider(FlightProvider):
                    for d in range(60, -1, -3)]
         origin, destination = request.origin.split(",")[0], request.destination.split(",")[0]
         options = []
-        for _ in range(rng.randint(4, 8)):
+        for _ in range(rng.randint(14, 30)):
             stops = rng.choice([0, 0, 1, 1, 1, 2])
             if request.max_stops is not None and stops > request.max_stops:
                 continue
@@ -45,8 +45,25 @@ class MockProvider(FlightProvider):
             minutes = int(base / 1.9 + 70 + stops * rng.randint(80, 240))
             dep = datetime.combine(request.depart_date, datetime.min.time()) + timedelta(
                 hours=rng.choice([6, 7, 9, 11, 13, 16, 18, 21]), minutes=rng.choice([0, 15, 30, 45]))
-            arr = dep + timedelta(minutes=minutes)
             via = rng.sample(HUBS, stops)
+            legs, lays, t = [], [], dep
+            points = [origin] + via + [destination]
+            flight_minutes = int(base / 1.9 + 70)
+            for k in range(len(points) - 1):
+                leg_min = max(60, flight_minutes // (stops + 1) + rng.randint(-30, 30))
+                arr_t = t + timedelta(minutes=leg_min)
+                legs.append(Leg(airline, f"{airline[:2].upper()} {rng.randint(100, 999)}", points[k], points[k + 1],
+                                t.strftime("%Y-%m-%d %H:%M"), arr_t.strftime("%Y-%m-%d %H:%M"),
+                                duration_minutes=leg_min, airplane=rng.choice(["Airbus A321", "Boeing 787", "Boeing 737"]),
+                                legroom=rng.choice(["30 in", "31 in", "28 in"]), travel_class="Economy",
+                                overnight=arr_t.date() != t.date(), extensions=["In-seat USB outlet"]))
+                if k < len(points) - 2:
+                    wait = rng.randint(60, 300)
+                    lays.append({"code": points[k + 1], "name": f"{points[k + 1]} Airport",
+                                 "duration_minutes": wait, "overnight": False})
+                    arr_t += timedelta(minutes=wait)
+                t = arr_t
+            minutes = int((t - dep).total_seconds() // 60)
             co2_typical = int(base * 0.9)
             options.append(FlightOption(
                 provider=self.name,
@@ -59,8 +76,9 @@ class MockProvider(FlightProvider):
                 airlines=[airline],
                 stops=stops,
                 duration_minutes=minutes,
-                legs=[Leg(airline, f"{airline[:2].upper()} {rng.randint(100, 999)}", origin, destination,
-                          dep.strftime("%Y-%m-%d %H:%M"), arr.strftime("%Y-%m-%d %H:%M"))],
+                legs=legs,
+                layover_details=lays,
+                departure_token=f"mock|{rng.random():.6f}" if request.return_date else None,
                 typical_low=typical_low,
                 typical_high=typical_high,
                 layovers=via,
@@ -68,4 +86,15 @@ class MockProvider(FlightProvider):
                 co2_typical_kg=co2_typical,
                 insights={"price_level": None, "lowest_price": None, "price_history": history},
             ))
+        return options
+
+    def return_flights(self, request: SearchRequest, departure_token: str) -> list[FlightOption]:
+        """Fake return choices: the same search run in the other direction, on the return date."""
+        back = SearchRequest(request.destination, request.origin, request.return_date, None,
+                             adults=request.adults, cabin=request.cabin, currency=request.currency)
+        options = self.search(back)
+        for o in options:
+            o.origin, o.destination = request.origin, request.destination
+            o.depart_date, o.return_date = request.depart_date, request.return_date
+            o.departure_token = None
         return options

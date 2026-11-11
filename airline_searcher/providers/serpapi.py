@@ -47,6 +47,29 @@ def similar_env_names() -> list[str]:
     return sorted(name for name in os.environ if "SERP" in name.upper())
 
 
+def _leg(f: dict) -> Leg:
+    dep, arr = f.get("departure_airport") or {}, f.get("arrival_airport") or {}
+    return Leg(
+        airline=f.get("airline", ""),
+        flight_number=f.get("flight_number", ""),
+        from_airport=dep.get("id", ""),
+        to_airport=arr.get("id", ""),
+        departure=dep.get("time", ""),
+        arrival=arr.get("time", ""),
+        duration_minutes=f.get("duration"),
+        airplane=f.get("airplane"),
+        legroom=f.get("legroom"),
+        travel_class=f.get("travel_class"),
+        overnight=bool(f.get("overnight")),
+        often_delayed=bool(f.get("often_delayed_by_over_30_min")),
+        from_name=dep.get("name"),
+        to_name=arr.get("name"),
+        operated_by=f.get("plane_and_crew_by"),
+        extensions=[e for e in f.get("extensions") or []
+                    if isinstance(e, str) and not e.startswith("Carbon emissions")][:6],
+    )
+
+
 def _kg(grams) -> Optional[int]:
     return round(grams / 1000) if isinstance(grams, (int, float)) else None
 
@@ -74,15 +97,24 @@ class SerpApiProvider(FlightProvider):
             "adults": req.adults,
             "travel_class": TRAVEL_CLASS[req.cabin],
             "stops": _stops_param(req.max_stops),
+            # Include the flights Google hides by default: about 5x more itineraries
+            # (checked on YYJ-CNF: 8 -> 42) for the same one search.
+            "show_hidden": "true",
             "api_key": self.api_key,
         }
+        if os.environ.get("SERPAPI_DEEP_SEARCH", "").lower() in ("1", "true", "yes"):
+            params["deep_search"] = "true"   # browser-identical results, but several times slower
         if req.return_date:
             params["return_date"] = req.return_date.isoformat()
         return params
 
     def search(self, request: SearchRequest) -> list[FlightOption]:
+        payload = self._get(self.build_params(request))
+        return self.parse(payload, request) if payload else []
+
+    def _get(self, params: dict) -> dict:
         try:
-            resp = self.session.get(ENDPOINT, params=self.build_params(request), timeout=self.timeout)
+            resp = self.session.get(ENDPOINT, params=params, timeout=self.timeout)
         except requests.RequestException as exc:
             raise ProviderError(f"SerpApi request failed: {exc}") from exc
         try:
@@ -90,12 +122,16 @@ class SerpApiProvider(FlightProvider):
         except ValueError as exc:
             raise ProviderError(f"SerpApi returned non-JSON (HTTP {resp.status_code})") from exc
         if resp.status_code != 200 or "error" in payload:
-            # "no results" is reported as an error by SerpApi; treat it as an empty result.
             message = str(payload.get("error", f"HTTP {resp.status_code}"))
             if "hasn't returned any results" in message:
-                return []
+                return {}
             raise ProviderError(f"SerpApi error: {message}")
-        return self.parse(payload, request)
+        return payload
+
+    def return_flights(self, request: SearchRequest, departure_token: str) -> list[FlightOption]:
+        """Return-flight choices for one outbound itinerary. Prices are the round-trip total."""
+        payload = self._get({**self.build_params(request), "departure_token": departure_token})
+        return self.parse(payload, request) if payload else []
 
     def parse(self, payload: dict, req: SearchRequest) -> list[FlightOption]:
         booking_url = (payload.get("search_metadata") or {}).get("google_flights_url")
@@ -113,17 +149,7 @@ class SerpApiProvider(FlightProvider):
                 price = item.get("price")
                 if price is None:
                     continue
-                legs = [
-                    Leg(
-                        airline=f.get("airline", ""),
-                        flight_number=f.get("flight_number", ""),
-                        from_airport=(f.get("departure_airport") or {}).get("id", ""),
-                        to_airport=(f.get("arrival_airport") or {}).get("id", ""),
-                        departure=(f.get("departure_airport") or {}).get("time", ""),
-                        arrival=(f.get("arrival_airport") or {}).get("time", ""),
-                    )
-                    for f in item.get("flights") or []
-                ]
+                legs = [_leg(f) for f in item.get("flights") or []]
                 airlines = list(dict.fromkeys(leg.airline for leg in legs if leg.airline))
                 options.append(
                     FlightOption(
@@ -145,6 +171,12 @@ class SerpApiProvider(FlightProvider):
                         or next((f.get("airline_logo") for f in item.get("flights") or []
                                  if f.get("airline_logo")), None),
                         layovers=[lay.get("id", "") for lay in item.get("layovers") or [] if lay.get("id")],
+                        layover_details=[{"code": lay.get("id", ""), "name": lay.get("name", ""),
+                                          "duration_minutes": lay.get("duration"),
+                                          "overnight": bool(lay.get("overnight"))}
+                                         for lay in item.get("layovers") or []],
+                        departure_token=item.get("departure_token"),
+                        booking_token=item.get("booking_token"),
                         co2_kg=_kg((item.get("carbon_emissions") or {}).get("this_flight")),
                         co2_typical_kg=_kg((item.get("carbon_emissions") or {}).get("typical_for_this_route")),
                         insights=insights,

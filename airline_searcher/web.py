@@ -25,7 +25,7 @@ from airline_searcher.search import run_search
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 MAX_COMBINATIONS = int(os.environ.get("MAX_WEB_COMBINATIONS", "14"))
 CACHE_SECONDS = int(os.environ.get("SEARCH_CACHE_SECONDS", "1800"))
-FARES_RETURNED = 30
+FARES_RETURNED = int(os.environ.get("MAX_WEB_FARES", "400"))  # every fare found, up to this many
 
 _cache: dict[tuple, tuple[float, int, dict]] = {}
 _cache_lock = threading.Lock()
@@ -86,6 +86,16 @@ def _fare(o: FlightOption, average: Optional[float]) -> dict:
         "to_airport": o.legs[-1].to_airport if o.legs else o.destination.split(",")[0],
         "co2_kg": o.co2_kg,
         "co2_typical_kg": o.co2_typical_kg,
+        "legs": [{
+            "airline": leg.airline, "flight_number": leg.flight_number,
+            "from": leg.from_airport, "from_name": leg.from_name, "to": leg.to_airport, "to_name": leg.to_name,
+            "departure": leg.departure, "arrival": leg.arrival, "duration_minutes": leg.duration_minutes,
+            "airplane": leg.airplane, "legroom": leg.legroom, "travel_class": leg.travel_class,
+            "overnight": leg.overnight, "often_delayed": leg.often_delayed,
+            "operated_by": leg.operated_by, "extensions": leg.extensions,
+        } for leg in o.legs],
+        "layover_details": o.layover_details,
+        "departure_token": o.departure_token,
         "booking_url": o.booking_url,
         "vs_average": None if average is None else ("below" if o.price <= average else "above"),
         "diff_from_average": None if average is None else round(o.price - average, 2),
@@ -208,6 +218,44 @@ def search_api(query: dict[str, str], today: Optional[date] = None) -> tuple[int
     return 200, body
 
 
+def returns_api(query: dict[str, str]) -> tuple[int, dict]:
+    """Return flights for one chosen outbound (Google Flights' departure_token). Uses one search."""
+    token = query.get("token", "")
+    if not token or len(token) > 4000:
+        return 400, {"error": "Missing outbound flight."}
+    try:
+        depart, ret = date.fromisoformat(query.get("depart", "")), date.fromisoformat(query.get("return", ""))
+        cfg = parse_search({"origin": query.get("from", ""), "destination": query.get("to", ""),
+                            "window_start": depart.isoformat(), "window_end": ret.isoformat(),
+                            "nights": max((ret - depart).days, 1), "adults": query.get("adults", "1"),
+                            "currency": query.get("currency", "USD"), "cabin": query.get("cabin", "economy")},
+                           0, depart)
+    except (ConfigError, ValueError) as exc:
+        return 400, {"error": str(exc).replace("searches[0].", "")}
+    key = ("returns", token, cfg.currency)
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit and time.time() - hit[0] < CACHE_SECONDS:
+            return hit[1], hit[2]
+    try:
+        provider = get_provider(provider_name())
+    except ProviderError as exc:
+        return 503, {"error": f"Live search isn't set up on this server yet ({exc})."}
+    if not hasattr(provider, "return_flights"):
+        return 501, {"error": "Return flights aren't available from this data source."}
+    from airline_searcher.models import SearchRequest
+    req = SearchRequest(cfg.origin, cfg.destination, depart, ret, adults=cfg.adults, cabin=cfg.cabin,
+                        currency=cfg.currency)
+    try:
+        options = provider.return_flights(req, token)
+    except ProviderError as exc:
+        return 502, {"error": f"Couldn't load return flights: {exc}"}
+    body = {"currency": cfg.currency, "fares": [_fare(o, None) for o in _dedupe(options)]}
+    with _cache_lock:
+        _cache[key] = (time.time(), 200, body)
+    return 200, body
+
+
 def query_from_url(url: str) -> dict[str, str]:
     return {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
 
@@ -234,6 +282,9 @@ class Handler(BaseHTTPRequestHandler):
                        "public, max-age=86400" if file.suffix == ".json" else "no-store")
         elif path == "/api/search":
             status, body = search_api(query_from_url(self.path))
+            self._send(status, json.dumps(body).encode(), "application/json")
+        elif path == "/api/returns":
+            status, body = returns_api(query_from_url(self.path))
             self._send(status, json.dumps(body).encode(), "application/json")
         elif path == "/api/health":
             self._send(200, json.dumps(health()).encode(), "application/json")
