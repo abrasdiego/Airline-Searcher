@@ -1,0 +1,32 @@
+name: Inspect flight data
+
+# Run by hand to see what the flight data source returns (structure and counts, never the key).
+# Uses about 5 SerpApi searches.
+on:
+  workflow_dispatch:
+    inputs:
+      origin: { description: "From (IATA)", default: "YYJ", required: true }
+      destination: { description: "To (IATA)", default: "CNF", required: true }
+      outbound: { description: "Departure date", default: "2027-02-03", required: true }
+      return_date: { description: "Return date, or - for one-way", default: "2027-02-17", required: true }
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          ORIGIN: ${{ inputs.origin }}
+          DESTINATION: ${{ inputs.destination }}
+          OUTBOUND: ${{ inputs.outbound }}
+          RETURN_DATE: ${{ inputs.return_date }}
+        run: python scripts/inspect_serpapi.py "$ORIGIN" "$DESTINATION" "$OUTBOUND" "$RETURN_DATE"
