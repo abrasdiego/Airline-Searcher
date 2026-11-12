@@ -12,9 +12,9 @@ searches:
     origin: YYJ                # Victoria, BC
     destination: CNF           # Belo Horizonte (Confins)
 
-    # Leave any day Feb 1–7, 2027 and come back 14 nights later (Feb 15–21).
-    window_start: 2027-02-01
-    window_end: 2027-02-21
+    # Leave any day Feb 15–21, 2027 and come back 14 nights later (Mar 1–7).
+    window_start: 2027-02-15
+    window_end: 2027-03-07
     trip_type: round_trip      # round_trip | one_way
     nights: 14                 # or a range: {min: 12, max: 14}
     return_within_window: true # return flight must also be inside the window
