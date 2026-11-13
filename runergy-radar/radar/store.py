@@ -305,6 +305,14 @@ class Store:
             "ORDER BY kw_score DESC, found_at DESC, id LIMIT ?", (since, limit), fetch=True)
         return [self._thread(row) for row in rows]
 
+    def drafts_containing(self, text: str) -> list[dict]:
+        """Replies not posted yet whose text contains `text`."""
+        rows = self.ready()._run(
+            f"SELECT {', '.join(_COLUMNS)} FROM radar_threads "
+            "WHERE status IN ('new', 'saved', 'filtered', 'dismissed') AND LOWER(draft) LIKE ? ESCAPE '!'",
+            ("%" + _like(text.lower()) + "%",), fetch=True)
+        return [self._thread(row) for row in rows]
+
     def clear_threads(self) -> None:
         self.ready()._run("DELETE FROM radar_threads")
 

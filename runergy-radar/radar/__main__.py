@@ -12,6 +12,7 @@ import argparse
 import sys
 from datetime import timedelta
 
+from radar import links
 from radar.scan import ScanBusy, run_scan
 from radar.store import shared_store
 from radar.text import Found, evaluate, now_utc
@@ -94,6 +95,7 @@ def demo(clear: bool) -> None:
         if not thread or not store.add_threads([thread]):
             continue
         added += 1
+        draft = links.enforce(draft, settings, thread["platform"])
         store.update_thread(thread["id"], ai_score=score, intent=intent, ai_reason=reason,
                             draft=draft, draft_state="ready" if draft else "skip")
         if not draft:

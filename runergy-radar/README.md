@@ -89,10 +89,14 @@ emails you first.) Vercel also triggers one scan a day as a backup.
 
 ### 3. Tell it about your app (Settings page)
 
+- **Link in replies**: where replies send people. It starts as `https://runergylab.com`. Change
+  it at any time (for example to an App Store redirect once the app is live) and every reply you
+  haven't posted yet is updated to the new link. Choose whether the link appears when the app is
+  mentioned (default), in every reply, or only when you add it yourself. Optionally tag the link
+  per platform (`utm_source=reddit` and so on) to see in analytics where visitors came from.
 - **Your app and your voice**: the AI states only what you write here. It ships with the
   Runergy Lab description (AI-powered training guidance from your wearable data, Garmin
-  integration, 5K to marathon). Add the link to share, platforms and price when you want them
-  mentioned, and keep it current.
+  integration, 5K to marathon). Add platforms and price when you want them mentioned.
 - **Topics and trigger phrases**: starter lists are included; tune them to how runners talk.
 - **Google Alerts**: follow the three steps shown on the Settings page to add free alert feeds.
 
@@ -100,8 +104,12 @@ Then press **Scan now**.
 
 ## Using it day to day
 
-- **To reply**: new conversations, best match first. Edit the draft, press **Copy reply & open
-  thread**, paste, post, then confirm **Yes, mark as replied**.
+- **To reply**: conversations on the left, best match first; the selected one opens on the
+  right with its draft. Edit it, press **Copy reply & open thread**, paste, post, then confirm
+  **Yes, mark as replied**. The next conversation opens by itself.
+- **Your link**: a chip under each reply shows whether your link is in it, or adds it in one click.
+- **Keyboard**: `J`/`K` next and previous, `C` copy and open, `R` replied, `S` save, `D` dismiss,
+  `E` edit, `/` search, `?` shows the list.
 - **Rewrite with AI**: ask for a change ("shorter", "don't mention the app").
 - **Save for later / Dismiss**: both are kept in their own tabs and can be moved back.
 - **Low relevance**: what the AI judged a poor fit. Nothing is ever deleted.

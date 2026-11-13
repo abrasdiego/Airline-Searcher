@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 DEFAULT_SETTINGS: dict = {
     "brand": {
         "name": "Runergy Lab",
-        "url": "",
+        "url": "https://runergylab.com",
         "description": (
             "Runergy Lab is an AI-powered performance and training intelligence platform for "
             "runners. It turns the training data runners already collect on their watch into "
@@ -27,6 +27,8 @@ DEFAULT_SETTINGS: dict = {
         ),
         "disclosure": "Full disclosure: I'm part of the team building Runergy Lab.",
     },
+    # Where replies send people. "when_mentioned": added whenever a reply mentions the app.
+    "link": {"mode": "when_mentioned", "track": False},
     "topics": [
         {"name": "App recommendations", "phrases": [
             "best running app", "running app recommendation", "which running app",
@@ -117,15 +119,26 @@ def clean_settings(raw) -> dict:
     out = base
 
     brand = raw.get("brand") if isinstance(raw.get("brand"), dict) else {}
+    url = _text(brand.get("url", base["brand"]["url"]), 300)
+    if url and "://" not in url and "." in url and " " not in url:
+        url = "https://" + url                     # "runergylab.com" is what people type
     out["brand"] = {
         "name": _text(brand.get("name", base["brand"]["name"]), 80) or base["brand"]["name"],
-        "url": _text(brand.get("url", ""), 300),
+        "url": url,
         "description": _long_text(brand.get("description", base["brand"]["description"]), 3000),
         "voice": _long_text(brand.get("voice", base["brand"]["voice"]), 1500),
         "disclosure": _long_text(brand.get("disclosure", base["brand"]["disclosure"]), 300),
     }
-    if out["brand"]["url"] and urlparse(out["brand"]["url"]).scheme not in ("http", "https"):
-        raise ValueError("The app link must start with https://")
+    if out["brand"]["url"]:
+        parts = urlparse(out["brand"]["url"])
+        if parts.scheme not in ("http", "https") or "." not in parts.netloc or " " in out["brand"]["url"]:
+            raise ValueError("The link for replies must be a web address, like https://runergylab.com")
+    link = raw.get("link") if isinstance(raw.get("link"), dict) else {}
+    out["link"] = {
+        "mode": link.get("mode") if link.get("mode") in ("when_mentioned", "always", "never")
+        else base["link"]["mode"],
+        "track": bool(link.get("track", False)),
+    }
 
     if "topics" in raw:
         topics = []

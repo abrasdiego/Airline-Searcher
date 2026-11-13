@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
-from radar import __version__, ai
+from radar import __version__, ai, links
 from radar.scan import ScanBusy, run_scan, serpapi_usage
 from radar.sources import serpapi, threads
 from radar.store import STATUSES, StoreError, is_persistent, shared_store
@@ -151,6 +151,8 @@ def state_view(store) -> dict:
         "setup": setup_status(),
         "sources": sources_view(store, settings),
         "topics": [topic["name"] for topic in settings["topics"]],
+        "links": links.all_links(settings),
+        "link_mode": settings["link"]["mode"],
         "ai": ai.is_configured() and settings["ai"]["enabled"],
         "password_set": bool(password()),
     }
@@ -375,8 +377,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/settings":
             if method == "GET":
                 return {"settings": store.settings()}
+            before = store.settings()
             saved = store.save_settings(self._body().get("settings"))
-            return {"settings": saved, "topics": [t["name"] for t in saved["topics"]]}
+            return {"settings": saved, "topics": [t["name"] for t in saved["topics"]],
+                    "links": links.all_links(saved), "link_mode": saved["link"]["mode"],
+                    "relinked": links.relink_drafts(store, before, saved)}
         match = _THREAD_PATH.match(path)
         if match and method == "POST":
             if match.group(2):
