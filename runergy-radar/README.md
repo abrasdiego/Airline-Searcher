@@ -89,8 +89,10 @@ emails you first.) Vercel also triggers one scan a day as a backup.
 
 ### 3. Tell it about your app (Settings page)
 
-- **Your app and your voice**: the AI states only what you write here. The description that
-  ships is a placeholder: replace it with accurate features, platforms and price.
+- **Your app and your voice**: the AI states only what you write here. It ships with the
+  Runergy Lab description (AI-powered training guidance from your wearable data, Garmin
+  integration, 5K to marathon). Add the link to share, platforms and price when you want them
+  mentioned, and keep it current.
 - **Topics and trigger phrases**: starter lists are included; tune them to how runners talk.
 - **Google Alerts**: follow the three steps shown on the Settings page to add free alert feeds.
 

@@ -13,8 +13,13 @@ DEFAULT_SETTINGS: dict = {
         "name": "Runergy Lab",
         "url": "",
         "description": (
-            "Runergy Lab is a running app that gives runners a training plan together with "
-            "fueling and nutrition guidance for training and race day."
+            "Runergy Lab is an AI-powered performance and training intelligence platform for "
+            "runners. It turns the training data runners already collect on their watch into "
+            "clear insights and personalized training guidance, so they know what to do next "
+            "instead of guessing. It connects to Garmin (more wearables are being explored). "
+            "It is for recreational, intermediate and advanced runners preparing for anything "
+            "from a 5K to a marathon, and focuses on individual progression, consistency and "
+            "smarter training decisions. Tagline: Stop guessing. Start running smarter."
         ),
         "voice": (
             "A friendly, experienced runner talking to another runner. Practical and specific, "
@@ -29,14 +34,19 @@ DEFAULT_SETTINGS: dict = {
         {"name": "Training plans", "phrases": [
             "marathon training plan", "half marathon training plan", "5k training plan",
             "10k training plan", "couch to 5k", "personalized training plan"]},
-        {"name": "Fueling & nutrition", "phrases": [
-            "marathon fueling", "race day nutrition", "fueling strategy", "how many gels",
-            "carb loading", "hitting the wall", "what to eat before a long run"]},
+        {"name": "Training data & wearables", "phrases": [
+            "understand my Garmin data", "Garmin training status", "training load",
+            "training readiness", "what do my running stats mean", "Garmin Coach alternative",
+            "too much running data"]},
+        {"name": "AI coaching", "phrases": [
+            "AI running coach", "AI training plan", "adaptive training plan",
+            "am I overtraining", "how to train smarter"]},
         {"name": "Brand mentions", "phrases": ["Runergy Lab", "Runergy"]},
     ],
     "context_words": [
         "run", "runs", "running", "runner", "runners", "marathon", "half marathon", "5k", "10k",
-        "jog", "jogging", "race", "ultra", "trail", "parkrun", "long run"],
+        "jog", "jogging", "race", "ultra", "trail", "parkrun", "long run", "Garmin", "pace",
+        "VO2 max"],
     "exclude_words": ["hiring", "job opening", "coupon code", "giveaway", "for sale"],
     "sites": ["reddit.com", "threads.com", "letsrun.com", "quora.com", "runnersworld.com",
               "slowtwitch.com"],

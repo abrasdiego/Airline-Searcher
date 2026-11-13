@@ -305,6 +305,10 @@ def test_page_and_health(client):
     status, page = client.call("/")
     assert status == 200 and "Runergy Radar" in page
     assert client.call("/api/health")[1]["ok"] is True
+    for image in web.IMAGES:
+        with urllib.request.urlopen(client.base + image) as response:
+            assert response.headers["Content-Type"] == "image/png" and response.read()[:4] == b"\x89PNG"
+    assert client.call("/logo-64.png/../web.py")[0] == 404
     assert client.call("/nope")[0] == 404 and client.call("/api/nope")[0] == 404
     # the two ways a host may present a rewritten request
     assert client.call("/api/index?__path=/api/health")[1]["ok"] is True

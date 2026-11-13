@@ -99,7 +99,7 @@ def test_search_results_count_without_a_literal_match():
 
 def test_untitled_posts_get_a_title():
     thread = evaluate(found(url="https://www.threads.com/@a/post/C1", title="",
-                            body="How many gels for a marathon? " * 8), defaults(), NOW)
+                            body="Is an AI running coach worth it for a marathon? " * 8), defaults(), NOW)
     assert thread["title"].endswith("…") and len(thread["title"]) <= 110
 
 

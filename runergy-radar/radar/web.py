@@ -24,7 +24,9 @@ from radar.sources import serpapi, threads
 from radar.store import STATUSES, StoreError, is_persistent, shared_store
 from radar.text import now_utc, stamp
 
-PAGE = Path(__file__).resolve().parent / "static" / "index.html"
+STATIC = Path(__file__).resolve().parent / "static"
+PAGE = STATIC / "index.html"
+IMAGES = ("/logo-64.png", "/logo-192.png")
 COOKIE = "radar_session"
 SESSION_DAYS = 30
 MAX_BODY = 200_000
@@ -236,7 +238,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        if "Cache-Control" not in (headers or {}):
+            self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -324,6 +327,9 @@ class Handler(BaseHTTPRequestHandler):
                         "Content-Security-Policy":
                             "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
                             "img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"})
+                if path in IMAGES:
+                    return self._send(200, (STATIC / path[1:]).read_bytes(), "image/png",
+                                      {"Cache-Control": "public, max-age=86400"})
                 raise ApiError(404, "Not found.")
             self._json(200, self._api(method, path, query))
         except ApiError as exc:

@@ -21,19 +21,18 @@ DEMO = [
      "Which running app for my first half marathon?",
      "I've been running 3x a week for about six months and just signed up for a half in April. "
      "Looking for a running app recommendation that gives me a real plan and not just tracking. "
-     "Bonus if it helps with what to eat on long runs because I keep bonking around 15k.", 3,
+     "I have a Garmin and honestly no idea what half the numbers mean or whether I'm improving.", 3,
      94, "asking_for_recommendation",
-     "Runner asking for an app with a plan plus fueling help: a direct fit.",
+     "Runner with a Garmin asking for an app with a real plan: a direct fit.",
      "Congrats on signing up! Six months of consistent running is a great base for an April half.\n\n"
-     "On the bonking around 15k: that's almost always fueling rather than fitness. Try taking "
-     "30-40g of carbs about every 30-40 minutes on anything over an hour, starting early (around "
-     "the 30 minute mark) rather than waiting until you feel flat. Practise it on every long run "
-     "so race day is nothing new.\n\n"
-     "For the plan, look for something with 3 runs a week you can actually keep: one easy, one "
-     "with some tempo work, one long run that builds gradually to 18-19k.\n\n"
-     "Full disclosure: I'm part of the team building Runergy Lab, which pairs a training plan "
-     "with fueling guidance for exactly this situation, so it may be worth a look. Either way, "
-     "sort the fueling and that 15k wall should move."),
+     "For the plan, look for three runs a week you can actually keep: one easy, one with some "
+     "tempo work, and a long run that builds gradually to 18-19k. Consistency beats any clever "
+     "session.\n\nOn the Garmin numbers, you only need two for now: keep most runs at an easy "
+     "heart rate where you could hold a conversation, and watch whether your pace at that same "
+     "heart rate gets quicker over the weeks. That is the clearest sign you're improving.\n\n"
+     "Full disclosure: I'm part of the team building Runergy Lab, which connects to Garmin and "
+     "turns that data into personalized training guidance, so it may be worth a look. Either "
+     "way, three steady runs a week will get you to that start line."),
     ("https://www.reddit.com/r/C25K/comments/1demo02/finished_c25k_what_next/",
      "Finished couch to 5k last week. What next?",
      "Did it! 31 minutes. Now I don't know what to do. Should I work on speed or go for 10k? "
@@ -45,32 +44,34 @@ DEMO = [
      "roughly 6-8 weeks, and your 5k time will drop on its own along the way.\n\n"
      "Keep every run at a pace where you could chat. It feels too slow and it works."),
     ("https://www.threads.com/@marathon.mia/post/DEMO0000003",
-     "", "Week 9 of marathon training and I still have no fueling strategy. How many gels do "
-     "people actually take in a marathon?? I took one on my 28k and wanted to cry at the end",
-     5, 82, "asking_for_advice", "Marathoner asking a specific fueling question we can answer well.",
-     "One gel over 28k would make anyone want to cry! A good starting point is 60g of carbs per "
-     "hour, so roughly a gel every 25-30 minutes from early on. For most people that's 6-8 gels "
-     "in a marathon. Start practising on your next long run so your stomach gets used to it."),
+     "", "Week 9 of marathon training and my Garmin says training status 'unproductive' again. "
+     "Am I overtraining or is the watch just being dramatic?? I feel fine", 5,
+     82, "asking_for_advice", "Marathoner confused by Garmin training status: we can answer this well.",
+     "Usually the watch being dramatic. 'Unproductive' mostly means your load went up while its "
+     "fitness estimate dipped, which happens in heavy marathon weeks, heat, or after poor sleep. "
+     "If your easy runs still feel easy and your resting heart rate is normal, carry on. If both "
+     "drift for a week, take two easy days."),
     ("https://www.letsrun.com/forum/flat_read.php?thread=12345678",
      "Runna vs a coach vs just using a free plan?",
      "Thinking about paying for one of the plan apps for a spring marathon. Anyone tried an "
-     "alternative to Runna? Is the adaptive stuff worth it or is a Pfitz plan from the book fine?",
+     "alternative to Runna? Is the adaptive training plan stuff worth it or is a Pfitz plan fine?",
      20, 76, "discussing_competitor", "Comparing plan apps; a balanced, disclosed mention could fit.",
      "A book plan like Pfitz is genuinely enough for most people if you're consistent and honest "
-     "about your current mileage. The value of an app is mostly convenience: paces worked out for "
-     "you and adjustments when you miss a week.\n\nIf you go the app route, pick on what you "
-     "struggle with. Full disclosure: I'm part of the team building Runergy Lab, which combines "
-     "a training plan with fueling guidance, so I'm biased, but if nutrition is your weak spot it "
-     "may be worth comparing."),
-    ("https://www.reddit.com/r/AdvancedRunning/comments/1demo05/carb_loading_protocol/",
-     "Carb loading: 2 days or 3?",
-     "Running my A race in two weeks. What does everyone do for carb loading, and how many "
-     "grams per kg? Last time I felt heavy at the start.", 30,
-     71, "asking_for_advice", "Experienced runner with a nutrition question; helpful answer, no plug needed.",
-     "Two days is plenty for most people. Aim for roughly 8-10g of carbs per kg of body weight "
-     "per day, mostly from low-fibre foods, and cut back on fat and fibre rather than simply "
-     "eating more of everything. Feeling a bit heavy at the start is normal: it's the water "
-     "stored with the glycogen, and it's what you'll be glad of at 30k."),
+     "about your current mileage. The value of an app is mostly that it adjusts: paces worked "
+     "out from your own data and changes when you miss a week or a block goes better than "
+     "expected.\n\nIf you go the app route, pick on what you struggle with. Full disclosure: "
+     "I'm part of the team building Runergy Lab, which uses your Garmin data to personalize the "
+     "training guidance, so I'm biased, but it may be worth comparing."),
+    ("https://www.reddit.com/r/AdvancedRunning/comments/1demo05/training_load_question/",
+     "How much do you trust training load numbers?",
+     "Building for my A race. My acute training load is way above the 'optimal' band but I feel "
+     "good. Do people actually back off when the number says so?", 30,
+     71, "asking_for_advice", "Experienced runner with a data question; helpful answer, no plug needed.",
+     "Treat it as a prompt to check in, not an instruction. The load number is a decent summary "
+     "of how fast you've ramped, so a spike above the band is worth a look, but it can't see "
+     "sleep, stress or how the sessions felt. If easy pace, resting heart rate and mood are all "
+     "normal, hold the plan and avoid stacking another jump next week. If two of the three are "
+     "off, take the easy days."),
     ("https://www.reddit.com/r/running/comments/1demo06/new_shoes_day/",
      "Best running app deals this week (affiliate roundup)",
      "Our weekly roundup of discounts on the best running app subscriptions and shoes.", 40,
