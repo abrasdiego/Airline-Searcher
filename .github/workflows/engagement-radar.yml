@@ -1,0 +1,45 @@
+name: Runergy Radar scan
+
+# Asks the Runergy Radar dashboard (runergy-radar/) to look for new conversations.
+# All keys live with the dashboard; this workflow only needs to know where it is:
+#   RADAR_URL    e.g. https://your-radar.vercel.app
+#   CRON_SECRET  the same value as the dashboard's CRON_SECRET environment variable
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"     # every 30 minutes
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: runergy-radar-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Scan
+        env:
+          RADAR_URL: ${{ secrets.RADAR_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$RADAR_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::Runergy Radar isn't connected yet. Add the RADAR_URL and CRON_SECRET secrets (see runergy-radar/README.md)."
+            exit 0
+          fi
+          status=$(curl -sS -o reply.json -w "%{http_code}" --max-time 90 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{}' \
+            "${RADAR_URL%/}/api/scan") || { echo "::error::Couldn't reach the dashboard at RADAR_URL."; exit 1; }
+          cat reply.json; echo
+          if [ "$status" = "409" ]; then echo "A scan was already running."; exit 0; fi
+          if [ "$status" != "200" ]; then echo "::error::The dashboard answered with HTTP $status."; exit 1; fi
+          python3 - <<'PY'
+          import json
+          scan = json.load(open("reply.json"))["scan"]
+          print(f"{scan['new']} new conversations, {scan['drafted']} replies drafted.")
+          for problem in scan["errors"]:
+              print(f"::warning::{problem}")
+          PY

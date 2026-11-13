@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Runergy Radar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e8501a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='white' stroke-width='2.2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='white'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f5f4f0; --surface: #ffffff; --sunken: #f0eee9; --ink: #1c1e22; --muted: #646a73;
+  --line: #e2dfd8; --accent: #d9480f; --accent-ink: #ffffff; --accent-soft: #fdebe2;
+  --good: #1a7f4e; --good-soft: #e3f4ea; --warn: #9a6400; --warn-soft: #fbf0d4;
+  --bad: #c0392b; --bad-soft: #fbe6e3; --reddit: #d93a00; --threads: #1c1e22; --web: #0b7285;
+  --shadow: 0 1px 2px rgba(20,20,20,.05), 0 4px 14px rgba(20,20,20,.05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111215; --surface: #1a1c20; --sunken: #15171a; --ink: #ecebe6; --muted: #9aa0a9;
+    --line: #2c2f36; --accent: #ff7a45; --accent-ink: #1a0d06; --accent-soft: #33200f;
+    --good: #4cc38a; --good-soft: #13291f; --warn: #e3b341; --warn-soft: #2e2610;
+    --bad: #ff7b6e; --bad-soft: #331a17; --reddit: #ff6a33; --threads: #ecebe6; --web: #4dc0d6;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+
+header.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; gap: 14px; height: 58px; }
+.logo { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+.logo svg { width: 26px; height: 26px; flex: none; }
+nav.main { display: flex; gap: 2px; margin-left: 6px; }
+nav.main button { background: none; border: 0; padding: 7px 11px; border-radius: 8px; color: var(--muted);
+  cursor: pointer; font-weight: 600; }
+nav.main button:hover { color: var(--ink); background: var(--sunken); }
+nav.main button[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: var(--shadow); }
+.spacer { flex: 1; }
+.scan-info { color: var(--muted); font-size: 13px; white-space: nowrap; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px;
+  padding: 6px 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.quiet { border-color: transparent; background: none; color: var(--muted); }
+.btn.quiet:hover { color: var(--ink); background: var(--sunken); }
+.btn.small { min-height: 30px; padding: 3px 10px; font-size: 13px; }
+.btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+nav.main button:focus-visible, .tab:focus-visible, .chip:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+.spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+main { padding: 20px 0 80px; }
+h1 { font-size: 22px; letter-spacing: -.02em; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+
+.notice { background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; }
+.notice strong { display: block; margin-bottom: 4px; }
+.notice ul { margin: 0; padding-left: 18px; }
+.notice li { margin: 2px 0; }
+.notice.bad { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 12px; margin-bottom: -1px;
+  cursor: pointer; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 5px; border-radius: 10px;
+  background: var(--sunken); color: var(--muted); font-size: 12px; text-align: center; }
+.tab[aria-selected="true"] .count.hot { background: var(--accent); color: var(--accent-ink); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px;
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.filters select, .filters input { border: 1px solid var(--line); background: var(--surface); border-radius: 9px;
+  padding: 5px 9px; min-height: 32px; font-size: 13px; }
+.filters input { flex: 1; min-width: 140px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+  margin-bottom: 12px; box-shadow: var(--shadow); }
+.meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid currentColor; }
+.badge.reddit { color: var(--reddit); } .badge.threads { color: var(--threads); } .badge.web { color: var(--web); }
+.score { margin-left: auto; font-weight: 700; font-size: 12px; padding: 2px 9px; border-radius: 999px; }
+.score.high { background: var(--good-soft); color: var(--good); }
+.score.mid { background: var(--warn-soft); color: var(--warn); }
+.score.low { background: var(--sunken); color: var(--muted); }
+.card h3 { font-size: 17px; line-height: 1.35; margin: 9px 0 5px; letter-spacing: -.01em; }
+.card h3 a { text-decoration: none; }
+.card h3 a:hover { text-decoration: underline; }
+.snippet { margin: 0; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.snippet.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.more { background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; font-size: 13px;
+  text-decoration: underline; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--sunken); color: var(--muted); }
+.tag.t { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.why { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.why b { color: var(--ink); font-weight: 600; }
+
+.reply { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.reply-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.reply-head .hint { font-weight: 400; color: var(--muted); margin-left: auto; }
+.reply-head .hint.over { color: var(--bad); font-weight: 700; }
+textarea.draft { display: block; width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; background: var(--sunken); line-height: 1.5; }
+textarea.draft:focus { background: var(--surface); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.actions .right { margin-left: auto; display: flex; gap: 4px; }
+.inline-note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.inline-note.bad { color: var(--bad); }
+.tweak { display: flex; gap: 8px; margin-top: 8px; }
+.tweak input { flex: 1; border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; background: var(--surface); }
+.confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px;
+  border-radius: 10px; background: var(--good-soft); color: var(--ink); }
+.confirm span { flex: 1; min-width: 180px; }
+.posted { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--sunken);
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+
+.empty { text-align: center; padding: 48px 16px; color: var(--muted); }
+.empty h2 { color: var(--ink); font-size: 18px; }
+.empty .btn { margin-top: 12px; }
+.center { display: flex; justify-content: center; margin: 16px 0; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+  margin-bottom: 14px; box-shadow: var(--shadow); }
+.panel > p.help { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+.row { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--line); }
+.row:first-of-type { border-top: 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--muted); }
+.dot.ok { background: var(--good); } .dot.error { background: var(--bad); } .dot.waiting { background: var(--warn); }
+.row .grow { flex: 1; min-width: 0; }
+.row .name { font-weight: 600; }
+.row .small, .small { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.row .small.bad { color: var(--bad); }
+.pill { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--good-soft); color: var(--good); } .pill.error { background: var(--bad-soft); color: var(--bad); }
+.pill.off { background: var(--sunken); color: var(--muted); } .pill.waiting { background: var(--warn-soft); color: var(--warn); }
+
+label.field { display: block; margin-bottom: 14px; }
+label.field > span { display: block; font-weight: 600; margin-bottom: 4px; }
+label.field > small { display: block; color: var(--muted); margin-bottom: 6px; font-size: 13px; }
+.field input[type=text], .field input[type=url], .field input[type=number], .field input[type=password], .field textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: var(--surface); }
+.field textarea { min-height: 76px; resize: vertical; line-height: 1.45; }
+.field input[type=number] { max-width: 120px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.topic { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--sunken); }
+.topic-head { display: flex; gap: 8px; margin-bottom: 8px; }
+.topic-head input { flex: 1; font-weight: 600; border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; background: var(--surface); }
+.topic textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px;
+  background: var(--surface); resize: vertical; line-height: 1.45; }
+.feed-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.feed-row input { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; background: var(--surface); min-width: 0; }
+.feed-row input.fname { flex: 0 0 30%; } .feed-row input.furl { flex: 1; }
+.check { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-weight: 600; }
+.savebar { position: sticky; bottom: 0; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line); padding: 12px 0; display: flex; gap: 12px; align-items: center; }
+ol.steps { margin: 0 0 12px; padding-left: 20px; color: var(--muted); font-size: 14px; }
+ol.steps li { margin: 3px 0; }
+code { background: var(--sunken); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+
+.login { max-width: 360px; margin: 12vh auto 0; }
+.login .panel { padding: 26px; }
+.login .logo { font-size: 18px; margin-bottom: 16px; }
+
+#toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: flex;
+  flex-direction: column; gap: 8px; align-items: center; width: min(92vw, 520px); pointer-events: none; }
+.toast { pointer-events: auto; background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.25); display: flex; gap: 14px; align-items: center; max-width: 100%; font-size: 14px; }
+.toast.bad { background: var(--bad); color: #fff; }
+.toast button { background: none; border: 0; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
+
+@media (max-width: 640px) {
+  .top-row { height: auto; flex-wrap: wrap; padding: 8px 0; gap: 6px 10px; }
+  nav.main { order: 3; width: 100%; margin-left: 0; }
+  nav.main button { flex: 1; }
+  .scan-info { display: none; }
+  .grid2 { grid-template-columns: 1fr; }
+  .card { padding: 14px; }
+  .actions .right { margin-left: 0; }
+  .feed-row { flex-wrap: wrap; } .feed-row input.fname { flex: 1 1 100%; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+(function () {
+  const TABS = [
+    ["new", "To reply"], ["saved", "Saved"], ["replied", "Replied"],
+    ["dismissed", "Dismissed"], ["filtered", "Low relevance"]];
+  const PLATFORMS = { reddit: "Reddit", threads: "Threads", web: "Forums & web" };
+  const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#e8501a"/><circle cx="16" cy="16" r="9" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="16" cy="16" r="3" fill="#fff"/><path d="M16 16 L23 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+  const S = { view: "inbox", tab: "new", platform: "", topic: "", sort: "", q: "", app: null,
+              threads: [], total: 0, platforms: {}, loading: false, settings: null, dirty: false,
+              scanning: false, login: false, lock: "" };
+  const root = document.getElementById("app");
+
+  // ---- small helpers -------------------------------------------------------------------------
+  function h(tag, attrs) {
+    const el = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs || {})) {
+      if (value === null || value === undefined || value === false) continue;
+      if (key === "class") el.className = value;
+      else if (key === "text") el.textContent = value;
+      else if (key === "html") el.innerHTML = value;            // only ever used with fixed markup
+      else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+      else if (value === true) el.setAttribute(key, "");
+      else el.setAttribute(key, value);
+    }
+    for (let i = 2; i < arguments.length; i++) {
+      const child = arguments[i];
+      if (child === null || child === undefined || child === false) continue;
+      (Array.isArray(child) ? child : [child]).forEach(c => {
+        if (c === null || c === undefined || c === false) return;
+        el.append(c.nodeType ? c : document.createTextNode(String(c)));
+      });
+    }
+    return el;
+  }
+  function safeUrl(url) {
+    try { const u = new URL(url); return (u.protocol === "https:" || u.protocol === "http:") ? u.href : "#"; }
+    catch (e) { return "#"; }
+  }
+  function ago(stampText) {
+    if (!stampText) return "";
+    const seconds = Math.max(0, (Date.now() - new Date(stampText).getTime()) / 1000);
+    if (seconds < 90) return "just now";
+    if (seconds < 3600) return Math.round(seconds / 60) + " min ago";
+    if (seconds < 86400) return Math.round(seconds / 3600) + "h ago";
+    const days = Math.round(seconds / 86400);
+    return days === 1 ? "yesterday" : days + " days ago";
+  }
+  function toast(message, options) {
+    options = options || {};
+    const box = h("div", { class: "toast" + (options.bad ? " bad" : "") }, h("span", { text: message }));
+    if (options.action) box.append(h("button", { text: options.label || "Undo", onclick: () => { box.remove(); options.action(); } }));
+    document.getElementById("toasts").append(box);
+    setTimeout(() => box.remove(), options.bad ? 9000 : 6000);
+  }
+  async function api(path, body) {
+    let response;
+    try {
+      response = await fetch(path, body === undefined ? { credentials: "same-origin" } : {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    } catch (e) {
+      throw new Error("Can't reach Runergy Radar. Check your connection and try again.");
+    }
+    let data = {};
+    try { data = await response.json(); } catch (e) { /* not JSON */ }
+    if (response.status === 401 && path !== "/api/login") { S.login = true; S.lock = ""; render(); throw new Error("Please sign in."); }
+    if (response.status === 503 && data.password_set === false) { S.lock = data.error; render(); throw new Error(data.error); }
+    if (!response.ok) throw new Error(data.error || "Something went wrong (" + response.status + ").");
+    return data;
+  }
+  function fail(error) { toast(error.message || String(error), { bad: true }); }
+  function copyText(text) {
+    const area = h("textarea", { style: "position:fixed;top:-1000px;opacity:0" });
+    area.value = text;
+    document.body.append(area);
+    area.select();
+    let done = false;
+    try { done = document.execCommand("copy"); } catch (e) { done = false; }
+    area.remove();
+    if (!done && navigator.clipboard) { navigator.clipboard.writeText(text).catch(() => {}); done = true; }
+    return done;
+  }
+
+  // ---- loading ---------------------------------------------------------------------------------
+  async function loadState() {
+    S.app = await api("/api/state");
+    S.login = false;
+    const waiting = S.app.counts.new;
+    document.title = (waiting ? "(" + waiting + ") " : "") + "Runergy Radar";
+  }
+  async function loadThreads(append) {
+    S.loading = true;
+    const params = new URLSearchParams({ status: S.tab, offset: append ? S.threads.length : 0 });
+    if (S.platform) params.set("platform", S.platform);
+    if (S.topic) params.set("topic", S.topic);
+    if (S.sort) params.set("sort", S.sort);
+    if (S.q) params.set("q", S.q);
+    try {
+      const data = await api("/api/threads?" + params);
+      S.threads = append ? S.threads.concat(data.threads) : data.threads;
+      S.total = data.total;
+      S.platforms = data.platforms;
+    } finally { S.loading = false; }
+  }
+  async function refresh() {
+    try { await loadState(); if (S.view === "inbox") await loadThreads(false); render(); }
+    catch (e) { if (!S.login && !S.lock) fail(e); }
+  }
+
+  // ---- top bar -----------------------------------------------------------------------------------
+  function topBar() {
+    const scan = S.app.last_scan;
+    const nav = [["inbox", "Inbox"], ["sources", "Sources"], ["settings", "Settings"]].map(([key, name]) =>
+      h("button", { "aria-current": S.view === key ? "page" : null, onclick: () => go(key), text: name }));
+    return h("header", { class: "top" }, h("div", { class: "wrap top-row" },
+      h("div", { class: "logo", html: LOGO + "<span>Runergy Radar</span>" }),
+      h("nav", { class: "main", "aria-label": "Sections" }, nav),
+      h("div", { class: "spacer" }),
+      h("span", { class: "scan-info", text: scan ? "Scanned " + ago(scan.at) : "Not scanned yet" }),
+      h("button", { class: "btn primary", disabled: S.scanning, onclick: scanNow },
+        S.scanning ? h("span", { class: "spin" }) : null, S.scanning ? "Scanning…" : "Scan now"),
+      S.app.password_set ? h("button", { class: "btn quiet small", onclick: signOut, text: "Sign out" }) : null));
+  }
+  async function go(view) {
+    if (S.view === "settings" && S.dirty && view !== "settings" &&
+        !confirm("You have unsaved changes in Settings. Leave without saving?")) return;
+    S.dirty = false;
+    S.view = view;
+    if (view === "settings") { S.settings = null; render(); try { S.settings = (await api("/api/settings")).settings; } catch (e) { fail(e); } }
+    else if (view === "inbox") { try { await loadThreads(false); } catch (e) { fail(e); } }
+    else { try { await loadState(); } catch (e) { fail(e); } }
+    render();
+    window.scrollTo(0, 0);
+  }
+  async function scanNow() {
+    if (S.scanning) return;
+    S.scanning = true; render();
+    try {
+      const data = await api("/api/scan", {});
+      const scan = data.scan;
+      let message = scan.new ? scan.new + " new conversation" + (scan.new === 1 ? "" : "s") + " found" : "Nothing new this time";
+      if (scan.drafted) message += ", " + scan.drafted + " repl" + (scan.drafted === 1 ? "y" : "ies") + " drafted";
+      toast(message + ".");
+      if (scan.errors.length) toast(scan.errors[0], { bad: true });
+    } catch (e) { fail(e); }
+    S.scanning = false;
+    await refresh();
+  }
+  async function signOut() {
+    try { await api("/api/logout", {}); } catch (e) { /* ignore */ }
+    S.login = true; S.app = null; render();
+  }
+
+  // ---- inbox -------------------------------------------------------------------------------------
+  function setupNotice() {
+    const missing = S.app.setup.filter(item => !item.ok);
+    if (!missing.length) return null;
+    const database = missing.find(item => item.key === "database");
+    return h("div", { class: "notice" + (database ? " bad" : "") },
+      h("strong", { text: database ? "Not ready yet: nothing will be saved" : "Finish setting up" }),
+      h("ul", {}, missing.map(item => h("li", {}, h("b", { text: item.name + ": " }), item.help))));
+  }
+  function inboxView() {
+    const counts = S.app.counts;
+    const tabs = h("div", { class: "tabs", role: "tablist" }, TABS.map(([key, name]) =>
+      h("button", { class: "tab", role: "tab", "aria-selected": S.tab === key ? "true" : "false",
+                    onclick: () => { S.tab = key; S.platform = ""; reloadThreads(); } },
+        name, h("span", { class: "count" + (key === "new" && counts.new ? " hot" : ""), text: counts[key] || 0 }))));
+
+    const chips = [h("button", { class: "chip", "aria-pressed": S.platform === "" ? "true" : "false",
+                                 onclick: () => { S.platform = ""; reloadThreads(); }, text: "All" })];
+    Object.keys(PLATFORMS).forEach(key => {
+      if (!S.platforms[key] && S.platform !== key) return;
+      chips.push(h("button", { class: "chip", "aria-pressed": S.platform === key ? "true" : "false",
+        onclick: () => { S.platform = key; reloadThreads(); }, text: PLATFORMS[key] + " " + (S.platforms[key] || 0) }));
+    });
+    const topic = h("select", { "aria-label": "Topic", onchange: e => { S.topic = e.target.value; reloadThreads(); } },
+      h("option", { value: "", text: "All topics" }),
+      S.app.topics.map(name => h("option", { value: name, selected: S.topic === name, text: name })));
+    const sort = h("select", { "aria-label": "Sort", onchange: e => { S.sort = e.target.value; reloadThreads(); } },
+      [["", "Best match first"], ["newest", "Newest first"]].map(([value, name]) =>
+        h("option", { value, selected: S.sort === value, text: name })));
+    const search = h("input", { type: "search", placeholder: "Search these conversations", value: S.q,
+      "aria-label": "Search", oninput: debounce(e => { S.q = e.target.value.trim(); reloadThreads(true); }, 350) });
+    search.id = "search";
+
+    const list = h("div", { id: "list" });
+    if (!S.threads.length) list.append(emptyState());
+    S.threads.forEach(thread => list.append(card(thread)));
+    if (S.threads.length < S.total) {
+      list.append(h("div", { class: "center" }, h("button", { class: "btn", text: "Show more (" + (S.total - S.threads.length) + " left)",
+        onclick: async e => { e.target.disabled = true; try { await loadThreads(true); } catch (err) { fail(err); } render(); } })));
+    }
+    return h("div", {},
+      h("h1", { text: counts.new ? counts.new + " conversation" + (counts.new === 1 ? "" : "s") + " to reply to" : "Inbox" }),
+      h("p", { class: "sub", text: "You've replied to " + S.app.replied_this_week + " this week. Nothing is ever posted for you: you review, copy and post each reply yourself." }),
+      setupNotice(), tabs, h("div", { class: "filters" }, chips, topic, sort, search), list);
+  }
+  function emptyState() {
+    const filtered = S.platform || S.topic || S.q;
+    if (filtered) return h("div", { class: "empty" }, h("h2", { text: "Nothing matches these filters" }),
+      h("button", { class: "btn", text: "Clear filters", onclick: () => { S.platform = S.topic = S.q = ""; reloadThreads(); } }));
+    if (S.tab === "new" && !S.app.last_scan) return h("div", { class: "empty" },
+      h("h2", { text: "No conversations yet" }),
+      h("p", { text: "Run your first scan to look for people talking about your topics." }),
+      h("button", { class: "btn primary", text: "Scan now", onclick: scanNow }));
+    const messages = { new: ["You're all caught up", "New conversations appear here after each scan."],
+      saved: ["Nothing saved", "Save a conversation to come back to it later."],
+      replied: ["No replies yet", "Conversations you've replied to are kept here."],
+      dismissed: ["Nothing dismissed", "Conversations you skip are kept here in case you change your mind."],
+      filtered: ["Nothing here", "Conversations the AI judged a poor fit are kept here, so nothing is lost."] };
+    return h("div", { class: "empty" }, h("h2", { text: messages[S.tab][0] }), h("p", { text: messages[S.tab][1] }));
+  }
+  async function reloadThreads(keepFocus) {
+    try { await loadThreads(false); } catch (e) { fail(e); }
+    render();
+    if (keepFocus) { const box = document.getElementById("search"); if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); } }
+  }
+  function debounce(fn, wait) { let timer; return function (event) { clearTimeout(timer); timer = setTimeout(() => fn(event), wait); }; }
+
+  function card(thread) {
+    const el = h("article", { class: "card" });
+    drawCard(el, thread, {});
+    return el;
+  }
+  function replaceThread(thread) {
+    const index = S.threads.findIndex(t => t.id === thread.id);
+    if (index >= 0) S.threads[index] = thread;
+  }
+  async function moveThread(thread, status, extra, undoLabel) {
+    const before = thread.status;
+    try {
+      const data = await api("/api/threads/" + thread.id, Object.assign({ status }, extra || {}));
+      S.app.counts = data.counts;
+      S.threads = S.threads.filter(t => t.id !== thread.id);
+      S.total = Math.max(0, S.total - 1);
+      render();
+      if (undoLabel) toast(undoLabel, { action: async () => {
+        try { await api("/api/threads/" + thread.id, { status: before }); } catch (e) { fail(e); }
+        refresh();
+      } });
+    } catch (e) { fail(e); }
+  }
+
+  function drawCard(el, thread, ui) {
+    el.textContent = "";
+    const url = safeUrl(thread.url);
+    const scoreClass = thread.score >= 75 ? "high" : thread.score >= 50 ? "mid" : "low";
+    el.append(h("div", { class: "meta" },
+      h("span", { class: "badge " + thread.platform, text: PLATFORMS[thread.platform] === "Forums & web" ? "Web" : PLATFORMS[thread.platform] || "Web" }),
+      h("span", { text: thread.community }),
+      thread.author ? h("span", { text: "· " + thread.author }) : null,
+      h("span", { text: "· " + (thread.created_at ? "posted " + ago(thread.created_at) : "found " + ago(thread.found_at)) }),
+      h("span", { class: "score " + scoreClass, title: thread.ai_score === null ? "Keyword match score" : "AI relevance score",
+                  text: thread.score + (thread.ai_score === null ? " keyword match" : " match") })));
+    el.append(h("h3", {}, h("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: thread.title })));
+    if (thread.body && thread.body !== thread.title) {
+      const snippet = h("p", { class: "snippet clamp", text: thread.body });
+      el.append(snippet);
+      if (thread.body.length > 260) el.append(h("button", { class: "more", text: "Show more",
+        onclick: e => { const open = snippet.classList.toggle("clamp"); e.target.textContent = open ? "Show more" : "Show less"; } }));
+    }
+    const tags = thread.topics.map(name => h("span", { class: "tag t", text: name }))
+      .concat(thread.matched.map(phrase => h("span", { class: "tag", text: "“" + phrase + "”" })));
+    if (tags.length) el.append(h("div", { class: "tags" }, tags));
+    if (thread.ai_reason) el.append(h("p", { class: "why" }, h("b", { text: "AI read: " }), thread.ai_reason));
+
+    if (thread.status === "replied") {
+      el.append(h("div", { class: "reply" },
+        h("div", { class: "reply-head" }, "Your reply", h("span", { class: "hint", text: "Marked replied " + ago(thread.status_at) })),
+        thread.reply_text ? h("div", { class: "posted", text: thread.reply_text }) : h("div", { class: "inline-note", text: "No reply text was saved." }),
+        h("div", { class: "actions" },
+          h("a", { class: "btn", href: url, target: "_blank", rel: "noopener noreferrer", text: "Open thread" }),
+          h("div", { class: "right" }, h("button", { class: "btn quiet", text: "Move back to inbox", onclick: () => moveThread(thread, "new", null, "Moved back to the inbox.") })))));
+      return;
+    }
+
+    const limit = thread.platform === "threads" ? 500 : 0;
+    const counter = h("span", { class: "hint" });
+    const area = h("textarea", { class: "draft", "aria-label": "Your reply",
+      placeholder: S.app.ai ? "Write your reply, or let the AI draft one." : "Write your reply here." });
+    area.value = thread.draft || "";
+    const updateCounter = () => {
+      const length = area.value.length;
+      counter.textContent = limit ? length + " / " + limit + " characters" : length ? length + " characters" : "";
+      counter.className = "hint" + (limit && length > limit ? " over" : "");
+      area.style.height = "auto";
+      area.style.height = Math.min(520, Math.max(96, area.scrollHeight + 2)) + "px";
+    };
+    let savedDraft = area.value;
+    const saveDraft = async () => {
+      if (area.value === savedDraft) return;
+      const sending = area.value;
+      try { const data = await api("/api/threads/" + thread.id, { draft: sending }); savedDraft = sending;
+            thread.draft = data.thread.draft; thread.draft_state = data.thread.draft_state; replaceThread(thread); }
+      catch (e) { fail(e); }
+    };
+    area.addEventListener("input", updateCounter);
+    area.addEventListener("blur", saveDraft);
+
+    const note = h("div", { class: "inline-note" + (thread.draft_state === "error" ? " bad" : "") });
+    if (thread.draft_state === "error" && thread.draft_error) note.textContent = "The AI draft failed: " + thread.draft_error;
+    else if (thread.draft_state === "pending") note.textContent = "An AI draft will be written on the next scan, or draft it now.";
+    else if (thread.draft_state === "skip" && !thread.draft) note.textContent = "The AI suggests not replying here. You can still write your own reply.";
+
+    const open = h("a", { class: "btn primary", href: url, target: "_blank", rel: "noopener noreferrer", text: "Copy reply & open thread" });
+    open.addEventListener("click", e => {
+      if (!area.value.trim()) { e.preventDefault(); toast("Write or draft a reply first."); area.focus(); return; }
+      if (limit && area.value.length > limit && !confirm("This reply is longer than Threads allows (" + limit + " characters). Open the thread anyway?")) { e.preventDefault(); return; }
+      const copied = copyText(area.value);
+      saveDraft();
+      ui.confirm = true; ui.copied = copied;
+      setTimeout(() => drawCard(el, Object.assign(thread, { draft: area.value }), ui), 50);
+    });
+
+    const tweak = h("div", { class: "tweak", hidden: !ui.tweak });
+    const tweakInput = h("input", { type: "text", placeholder: "Optional: how should it change? e.g. shorter, don't mention the app", "aria-label": "How should the draft change?" });
+    const runDraft = async button => {
+      button.disabled = true; button.textContent = ""; button.append(h("span", { class: "spin" }), " Writing…");
+      try {
+        const data = await api("/api/threads/" + thread.id + "/draft", { instruction: tweakInput.value, draft: area.value });
+        replaceThread(data.thread); drawCard(el, data.thread, {});
+      } catch (e) { fail(e); drawCard(el, thread, ui); }
+    };
+    tweakInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); runDraft(tweakGo); } });
+    const tweakGo = h("button", { class: "btn", text: "Rewrite", onclick: e => runDraft(e.currentTarget) });
+    tweak.append(tweakInput, tweakGo);
+
+    const aiButton = !S.app.ai ? null : thread.draft
+      ? h("button", { class: "btn", text: "Rewrite with AI", onclick: () => { ui.tweak = !ui.tweak; tweak.hidden = !ui.tweak; if (ui.tweak) tweakInput.focus(); } })
+      : h("button", { class: "btn", text: "Draft with AI", onclick: e => runDraft(e.currentTarget) });
+
+    const right = h("div", { class: "right" });
+    if (thread.status !== "new") right.append(h("button", { class: "btn quiet", text: "Move to inbox", onclick: () => moveThread(thread, "new", null, "Moved to the inbox.") }));
+    if (thread.status !== "saved" && thread.status !== "filtered") right.append(h("button", { class: "btn quiet", text: "Save for later", onclick: async () => { await saveDraft(); moveThread(thread, "saved", null, "Saved for later."); } }));
+    if (thread.status !== "dismissed") right.append(h("button", { class: "btn quiet", text: "Dismiss", onclick: () => moveThread(thread, "dismissed", null, "Dismissed.") }));
+
+    const reply = h("div", { class: "reply" },
+      h("div", { class: "reply-head" }, thread.draft ? "Suggested reply" : "Your reply", counter),
+      area, note.textContent ? note : null, tweak,
+      h("div", { class: "actions" }, open, aiButton, right));
+    if (ui.confirm) {
+      reply.append(h("div", { class: "confirm" },
+        h("span", { text: (ui.copied ? "Reply copied. " : "Copy the reply above, then ") + "Paste it into the thread that just opened. Did you post it?" }),
+        h("button", { class: "btn primary small", text: "Yes, mark as replied",
+          onclick: () => moveThread(thread, "replied", { reply_text: area.value }, "Marked as replied.") }),
+        h("button", { class: "btn small", text: "Not yet", onclick: () => { ui.confirm = false; drawCard(el, thread, ui); } })));
+    }
+    el.append(reply);
+    requestAnimationFrame(updateCounter);
+  }
+
+  // ---- sources -------------------------------------------------------------------------------------
+  function sourcesView() {
+    const labels = { ok: "Working", error: "Problem", off: "Not connected", waiting: "Waiting for first scan" };
+    const rows = S.app.sources.map(source => {
+      const lines = [];
+      if (source.state === "off") lines.push(h("div", { class: "small", text: source.hint }));
+      if (source.detail && source.state !== "off") lines.push(h("div", { class: "small", text: source.detail }));
+      if (source.at) lines.push(h("div", { class: "small", text: "Last checked " + ago(source.at) + " · " + source.found + " result" + (source.found === 1 ? "" : "s") }));
+      if (source.message) lines.push(h("div", { class: "small bad", text: source.message + (source.last_ok ? " Last worked " + ago(source.last_ok) + "." : "") }));
+      return h("div", { class: "row" }, h("span", { class: "dot " + source.state }),
+        h("div", { class: "grow" }, h("div", { class: "name", text: source.name }), h("div", { class: "small", text: source.kind }), lines),
+        h("span", { class: "pill " + source.state, text: labels[source.state] }));
+    });
+    const setup = S.app.setup.map(item => h("div", { class: "row" }, h("span", { class: "dot " + (item.ok ? "ok" : "error") }),
+      h("div", { class: "grow" }, h("div", { class: "name", text: item.name }), item.ok ? null : h("div", { class: "small", text: item.help })),
+      h("span", { class: "pill " + (item.ok ? "ok" : "error"), text: item.ok ? "Ready" : "To do" })));
+    const log = S.app.scan_log.length ? S.app.scan_log.map(scan => h("div", { class: "row" },
+      h("span", { class: "dot " + (scan.errors.length ? "error" : "ok") }),
+      h("div", { class: "grow" },
+        h("div", { class: "name", text: ago(scan.at) + ": " + scan.new + " new, " + scan.drafted + " drafted" }),
+        h("div", { class: "small", text: "Looked at " + scan.seen + " results in " + scan.seconds + "s" }),
+        scan.errors.map(error => h("div", { class: "small bad", text: error })))))
+      : h("p", { class: "help", text: "No scans yet." });
+    return h("div", {},
+      h("h1", { text: "Sources" }), h("p", { class: "sub", text: "Where conversations are found, and whether each source is working." }),
+      h("div", { class: "panel" }, h("h2", { text: "Setup checklist" }), setup),
+      h("div", { class: "panel" }, h("h2", { text: "Sources" }), rows),
+      h("div", { class: "panel" }, h("h2", { text: "Recent scans" }), log));
+  }
+
+  // ---- settings ------------------------------------------------------------------------------------
+  function dirty() { S.dirty = true; const bar = document.getElementById("savestate"); if (bar) bar.textContent = "Unsaved changes"; }
+  function field(labelText, help, control) {
+    return h("label", { class: "field" }, h("span", { text: labelText }), help ? h("small", { text: help }) : null, control);
+  }
+  function textInput(value, onchange, type, extra) {
+    return h("input", Object.assign({ type: type || "text", value: value === undefined || value === null ? "" : value,
+      oninput: e => { onchange(e.target.value); dirty(); } }, extra || {}));
+  }
+  function textArea(value, onchange, extra) {
+    const area = h("textarea", Object.assign({ oninput: e => { onchange(e.target.value); dirty(); } }, extra || {}));
+    area.value = value || "";
+    return area;
+  }
+  function lines(text) { return text.split(/[\n,]/).map(s => s.trim()).filter(Boolean); }
+
+  function settingsView() {
+    const s = S.settings;
+    if (!s) return h("div", { class: "empty" }, h("span", { class: "spin" }));
+    const topics = h("div", {});
+    const drawTopics = () => {
+      topics.textContent = "";
+      s.topics.forEach((topic, index) => {
+        const phrases = h("textarea", { "aria-label": "Trigger phrases for " + (topic.name || "this topic"),
+          placeholder: "One phrase per line, e.g.\nbest running app\nmarathon training plan",
+          oninput: e => { topic.phrases = lines(e.target.value); dirty(); } });
+        phrases.value = topic.phrases.join("\n");
+        topics.append(h("div", { class: "topic" },
+          h("div", { class: "topic-head" },
+            h("input", { type: "text", value: topic.name, placeholder: "Topic name", "aria-label": "Topic name",
+                         oninput: e => { topic.name = e.target.value; dirty(); } }),
+            h("button", { class: "btn quiet small", text: "Remove", onclick: () => {
+              if (topic.phrases.length && !confirm("Remove the topic “" + topic.name + "” and its phrases?")) return;
+              s.topics.splice(index, 1); dirty(); drawTopics(); } })),
+          phrases));
+      });
+      topics.append(h("button", { class: "btn", text: "+ Add a topic", onclick: () => { s.topics.push({ name: "", phrases: [] }); dirty(); drawTopics(); } }));
+    };
+    drawTopics();
+
+    const feeds = h("div", {});
+    const drawFeeds = () => {
+      feeds.textContent = "";
+      s.feeds.forEach((feed, index) => feeds.append(h("div", { class: "feed-row" },
+        h("input", { class: "fname", type: "text", value: feed.name, placeholder: "Name, e.g. Alert: running app", "aria-label": "Feed name",
+                     oninput: e => { feed.name = e.target.value; dirty(); } }),
+        h("input", { class: "furl", type: "url", value: feed.url, placeholder: "https://www.google.com/alerts/feeds/…", "aria-label": "Feed link",
+                     oninput: e => { feed.url = e.target.value.trim(); dirty(); } }),
+        h("button", { class: "btn quiet small", text: "Remove", onclick: () => { s.feeds.splice(index, 1); dirty(); drawFeeds(); } }))));
+      feeds.append(h("button", { class: "btn", text: "+ Add a feed", onclick: () => { s.feeds.push({ name: "", url: "" }); dirty(); drawFeeds(); } }));
+    };
+    drawFeeds();
+
+    return h("div", {},
+      h("h1", { text: "Settings" }), h("p", { class: "sub", text: "What to listen for, where to look, and how your replies should sound." }),
+
+      h("div", { class: "panel" }, h("h2", { text: "Topics and trigger phrases" }),
+        h("p", { class: "help", text: "Each phrase is searched for on the sites below and matched in feeds. Write them the way runners would type them. Phrases take turns, so a shorter, sharper list is checked more often." }),
+        topics),
+
+      h("div", { class: "panel" }, h("h2", { text: "Your app and your voice" }),
+        h("p", { class: "help", text: "The AI only states what is written here about your app, so keep the description accurate and current." }),
+        h("div", { class: "grid2" },
+          field("App name", "", textInput(s.brand.name, v => s.brand.name = v)),
+          field("Link to share", "", textInput(s.brand.url, v => s.brand.url = v.trim(), "url", { placeholder: "https://" }))),
+        field("What the app does", "Features, who it is for, price, platforms. Only true, current facts.", textArea(s.brand.description, v => s.brand.description = v, { style: "min-height:120px" })),
+        field("How replies should sound", "", textArea(s.brand.voice, v => s.brand.voice = v)),
+        field("Disclosure", "Added whenever a reply mentions your app. Being upfront keeps your accounts in good standing and readers on your side.", textInput(s.brand.disclosure, v => s.brand.disclosure = v))),
+
+      h("div", { class: "panel" }, h("h2", { text: "Where to look" }),
+        field("Sites searched through Google", "One per line. You can narrow a site, e.g. reddit.com/r/running. Up to 10.",
+          textArea(s.sites.join("\n"), v => s.sites = lines(v), { style: "min-height:110px" })),
+        h("h2", { text: "Google Alerts and other feeds" }),
+        h("p", { class: "help", text: "Free and unlimited. A Google Alert watches the whole web (Reddit and forums included) for a phrase:" }),
+        h("ol", { class: "steps" },
+          h("li", { text: "Open google.com/alerts and type a phrase, for example: \"running app\" recommend" }),
+          h("li", { text: "Choose Show options, then set Deliver to: RSS feed, and How often: As-it-happens." }),
+          h("li", { text: "Create the alert, right-click the feed icon next to it, copy the link, and paste it here." })),
+        feeds),
+
+      h("div", { class: "panel" }, h("h2", { text: "Filters and limits" }),
+        field("A conversation must be about running", "At least one of these words must appear. Comma or new line between words.",
+          textArea(s.context_words.join(", "), v => s.context_words = lines(v))),
+        field("Skip conversations containing", "", textArea(s.exclude_words.join(", "), v => s.exclude_words = lines(v))),
+        h("div", { class: "grid2" },
+          field("Ignore conversations older than (days)", "", textInput(s.max_age_days, v => s.max_age_days = v, "number", { min: 1, max: 30 })),
+          field("Google searches per day", "Each one uses a SerpApi credit. 0 turns search off.", textInput(s.serpapi_daily_budget, v => s.serpapi_daily_budget = v, "number", { min: 0, max: 2000 })),
+          field("AI drafts per scan", "", textInput(s.ai.drafts_per_scan, v => s.ai.drafts_per_scan = v, "number", { min: 0, max: 40 })),
+          field("Hide conversations the AI scores below", "Hidden ones go to Low relevance, never deleted.", textInput(s.ai.min_relevance, v => s.ai.min_relevance = v, "number", { min: 0, max: 100 }))),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.ai.enabled, onchange: e => { s.ai.enabled = e.target.checked; dirty(); } }), "Let the AI score conversations and draft replies"),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.threads_enabled, onchange: e => { s.threads_enabled = e.target.checked; dirty(); } }), "Search Threads directly (when a Threads token is connected)")),
+
+      h("div", { class: "savebar" },
+        h("button", { class: "btn primary", text: "Save settings", onclick: saveSettings }),
+        h("span", { class: "small", id: "savestate", text: S.dirty ? "Unsaved changes" : "" })));
+  }
+  async function saveSettings(event) {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const data = await api("/api/settings", { settings: S.settings });
+      S.settings = data.settings; S.app.topics = data.topics; S.dirty = false;
+      if (S.topic && !data.topics.includes(S.topic)) S.topic = "";
+      toast("Settings saved. They apply from the next scan.");
+      render();
+    } catch (e) { fail(e); button.disabled = false; }
+  }
+  window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  // ---- sign in ---------------------------------------------------------------------------------------
+  function loginView() {
+    const input = h("input", { type: "password", autocomplete: "current-password", required: true });
+    const message = h("div", { class: "inline-note bad" });
+    const button = h("button", { class: "btn primary", type: "submit", text: "Sign in", style: "width:100%" });
+    const form = h("form", { onsubmit: async e => {
+      e.preventDefault(); button.disabled = true; message.textContent = "";
+      try { await api("/api/login", { password: input.value }); S.login = false; await start(); }
+      catch (err) { message.textContent = err.message; button.disabled = false; input.select(); }
+    } }, h("label", { class: "field" }, h("span", { text: "Password" }), input), button, message);
+    setTimeout(() => input.focus(), 0);
+    return h("div", { class: "wrap login" }, h("div", { class: "panel" }, h("div", { class: "logo", html: LOGO + "<span>Runergy Radar</span>" }), form));
+  }
+  function lockView() {
+    return h("div", { class: "wrap login" }, h("div", { class: "panel" }, h("div", { class: "logo", html: LOGO + "<span>Runergy Radar</span>" }),
+      h("h2", { text: "One step left" }), h("p", { text: S.lock }),
+      h("p", { class: "small", text: "The dashboard stays locked until a password is set, so nobody else can open it." })));
+  }
+
+  // ---- draw --------------------------------------------------------------------------------------------
+  function render() {
+    root.textContent = "";
+    if (S.lock) return root.append(lockView());
+    if (S.login) return root.append(loginView());
+    if (!S.app) return root.append(h("div", { class: "empty" }, h("span", { class: "spin" })));
+    const view = S.view === "sources" ? sourcesView() : S.view === "settings" ? settingsView() : inboxView();
+    root.append(topBar(), h("main", { class: "wrap" }, view));
+  }
+  async function start() {
+    render();
+    try { await loadState(); await loadThreads(false); } catch (e) { if (!S.login && !S.lock) fail(e); }
+    render();
+  }
+  // Keep the counts fresh without disturbing a reply that is being edited.
+  setInterval(async () => {
+    if (document.hidden || S.login || S.lock || !S.app || S.scanning) return;
+    const before = S.app.counts.new;
+    try { await loadState(); } catch (e) { return; }
+    const typing = document.activeElement && ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName);
+    if (S.view === "inbox" && S.app.counts.new > before && !typing) { try { await loadThreads(false); } catch (e) { return; } render(); }
+    else if (S.view === "inbox" && S.app.counts.new > before) toast((S.app.counts.new - before) + " new conversation(s) found.", { label: "Show", action: refresh });
+  }, 60000);
+  start();
+})();
+</script>
+</body>
+</html>

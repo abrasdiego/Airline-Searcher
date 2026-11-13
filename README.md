@@ -190,3 +190,10 @@ python -m airline_searcher -c config.yaml
 pip install -r requirements-dev.txt
 python -m pytest
 ```
+
+## Runergy Radar (separate tool)
+
+The `runergy-radar/` folder holds an unrelated tool: a dashboard that finds public conversations
+about running topics and drafts replies for Runergy Lab. See
+[runergy-radar/README.md](runergy-radar/README.md). It deploys as its own Vercel project and does
+not affect the flight searcher.
