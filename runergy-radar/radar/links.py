@@ -46,6 +46,16 @@ def destination(settings: dict, platform: str = "") -> str:
     return urlunparse(parts._replace(query=urlencode(query)))
 
 
+def landing(settings: dict, platform: str = "", code: str = "") -> str:
+    """Where a counted link forwards to: the destination, carrying the reply's code as ?ref=."""
+    target = destination(settings, platform)
+    if not target or not code or not settings["link"]["pass_ref"]:
+        return target
+    parts = urlparse(target)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "ref"]
+    return urlunparse(parts._replace(query=urlencode(query + [("ref", code)])))
+
+
 def reply_link(settings: dict, platform: str = "", thread_id: str = "") -> str:
     """The link to put in a reply ('' when no link is set)."""
     if not settings["brand"]["url"]:

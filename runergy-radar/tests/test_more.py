@@ -213,7 +213,7 @@ def test_switching_to_counted_links_updates_drafts_and_survives_later_changes(st
     later["brand"]["url"] = "https://apps.example/runergy"
     later = {**store.save_settings(later), "_base": ""}
     assert links.relink_drafts(store, after, later) == 0                      # the counted link never changes
-    assert web.go(store, tid[:10], "Mozilla/5.0", count=True) == "https://apps.example/runergy"
+    assert web.go(store, tid[:10], "Mozilla/5.0", count=True) == f"https://apps.example/runergy?ref={tid[:10]}"
     plain = defaults()
     plain["brand"]["url"] = "https://apps.example/runergy"
     plain = {**store.save_settings(plain), "_base": ""}
@@ -238,15 +238,19 @@ def test_go_link_redirects_and_counts_people_only(client, monkeypatch):  # noqa:
         except urllib.error.HTTPError as error:
             return error.code, error.headers.get("Location")
     monkeypatch.setenv("RADAR_PASSWORD", "pw")                      # the link works without signing in
-    assert visit(tid[:10]) == (302, "https://runergylab.com")
-    assert visit(tid[:10]) == (302, "https://runergylab.com")
+    assert visit(tid[:10]) == (302, f"https://runergylab.com?ref={tid[:10]}")     # your site learns which reply
+    assert visit(tid[:10]) == (302, f"https://runergylab.com?ref={tid[:10]}")
     assert visit(tid[:10], agent="Slackbot-LinkExpanding 1.0")[0] == 302
     assert visit(tid[:10], method="HEAD")[0] == 302
     assert visit("ffffffffff") == (302, "https://runergylab.com")   # unknown code still gets people there
     assert visit("../etc")[0] == 404 and visit("zz")[0] == 404
     assert store.clicks_for([tid]) == {tid: 2}                      # robots and previews are not clicks
     store.save_settings({"link": {"track": True}})
-    assert "utm_source=reddit" in visit(tid[:10])[1]
+    assert visit(tid[:10])[1].endswith(f"utm_source=reddit&utm_medium=community&utm_campaign=radar&ref={tid[:10]}")
+    store.save_settings({"link": {"pass_ref": False}})
+    assert visit(tid[:10])[1] == "https://runergylab.com"
+    custom = store.save_settings({"brand": {"url": "https://runergylab.com/get?ref=old&x=1"}})
+    assert links.landing(custom, "reddit", "abc") == "https://runergylab.com/get?x=1&ref=abc"
     store.save_settings({"brand": {"url": ""}})
     assert visit(tid[:10])[0] == 404
 

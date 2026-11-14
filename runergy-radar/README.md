@@ -135,6 +135,10 @@ Use an address on your own domain: in Vercel open the project's **Settings → D
 `go.runergylab.com`, create the DNS record Vercel shows you, and enter
 `https://go.runergylab.com` as the address for short links. Link-preview robots are not counted.
 
+Counted links also hand your site the reply's code (`https://runergylab.com/?ref=a1b2c3d4e5`). If
+the app saves that `ref` on the new account at sign-up, sign-ups can later be traced back to the
+reply, community and phrase that produced them. A template of every setting is in `.env.example`.
+
 ## Using it day to day
 
 - **To reply**: conversations on the left, best match first; the selected one opens on the

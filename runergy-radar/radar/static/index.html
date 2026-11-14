@@ -930,7 +930,7 @@ ol.steps li { margin: 4px 0; }
       if (s.link.via_radar) {
         const via = (s.link.base.trim() || s.default_base || "").replace(/\/$/, "");
         return preview.append(h("div", {}, "Replies will carry a link like ", h("b", { text: (via || "https://your-address") + "/go/a1b2c3d4e5" })),
-          h("div", {}, "It forwards to ", h("b", { text: s.link.track ? trackedLink(base, "reddit") : base }), " and counts the click. Change the link above later and every reply you ever posted follows it."));
+          h("div", {}, "It forwards to ", h("b", { text: (s.link.track ? trackedLink(base, "reddit") : base) + (s.link.pass_ref ? (((s.link.track ? trackedLink(base, "reddit") : base).includes("?")) ? "&" : "?") + "ref=a1b2c3d4e5" : "") }), " and counts the click. Change the link above later and every reply you ever posted follows it."));
       }
       const show = (name, tag) => h("div", {}, name + " replies link to ", h("b", { text: s.link.track ? trackedLink(base, tag) : base }));
       preview.append(show("Reddit", "reddit"), show("Threads", "threads"), show("Forum", "forum"));
@@ -945,7 +945,9 @@ ol.steps li { margin: 4px 0; }
 
     const viaBox = h("div", { hidden: !s.link.via_radar },
       field("Address the short links use", "Best on your own domain (for example go.runergylab.com, pointed at this dashboard): it looks trustworthy and communities often filter unfamiliar link shorteners. Leave empty to use this dashboard's address.",
-        textInput(s.link.base, v => { s.link.base = v.trim(); drawPreview(); }, "url", { placeholder: s.default_base || "https://go.runergylab.com", autocapitalize: "off", spellcheck: "false" })));
+        textInput(s.link.base, v => { s.link.base = v.trim(); drawPreview(); }, "url", { placeholder: s.default_base || "https://go.runergylab.com", autocapitalize: "off", spellcheck: "false" })),
+      h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.link.pass_ref, onchange: e => { s.link.pass_ref = e.target.checked; dirty(); drawPreview(); } }),
+        h("span", {}, "Tell my site which reply the visitor came from", h("small", { text: "Adds ?ref=code to the address people land on. If your app saves it at sign-up, sign-ups can be traced back to the reply, community and phrase that brought them." }))));
 
     const comms = h("div", {});
     const drawComms = () => {

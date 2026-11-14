@@ -30,7 +30,10 @@ DEFAULT_SETTINGS: dict = {
     # Where replies send people. "when_mentioned": added whenever a reply mentions the app.
     # via_radar: links go through this dashboard (/go/...), which counts clicks and keeps old
     # replies pointing at whatever the link is today. base: the address people see for those links.
-    "link": {"mode": "when_mentioned", "track": False, "via_radar": False, "base": ""},
+    # pass_ref: counted links hand the reply's code to your site as ?ref=..., so sign-ups can
+    # later be traced back to the reply that brought them.
+    "link": {"mode": "when_mentioned", "track": False, "via_radar": False, "base": "",
+             "pass_ref": True},
     "topics": [
         {"name": "App recommendations", "phrases": [
             "best running app", "running app recommendation", "which running app",
@@ -148,6 +151,7 @@ def clean_settings(raw) -> dict:
         else base["link"]["mode"],
         "track": bool(link.get("track", False)),
         "via_radar": bool(link.get("via_radar", False)),
+        "pass_ref": bool(link.get("pass_ref", True)),
         "base": _text(link.get("base", ""), 200).rstrip("/"),
     }
     if out["link"]["base"]:

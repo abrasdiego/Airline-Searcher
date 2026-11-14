@@ -293,7 +293,8 @@ def go(store, code: str, user_agent: str, count: bool) -> str:
     """Where a counted link leads (and count the click if a person followed it)."""
     settings = store.settings()
     thread = store.find_by_prefix(code)
-    target = links.destination(settings, thread["platform"] if thread else "")
+    target = (links.landing(settings, thread["platform"], thread["id"][:links.CODE_LENGTH]) if thread
+              else links.destination(settings))
     if target and count and thread and links.is_person(user_agent):
         store.add_click(thread["id"], now_utc().strftime("%Y-%m-%d"))
     return target

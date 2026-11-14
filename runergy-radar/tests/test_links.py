@@ -21,7 +21,7 @@ def test_default_link_is_the_website():
     for bad in ("not a link", "ftp://x.example", "https://nodot"):
         with pytest.raises(ValueError):
             clean_settings({"brand": {"url": bad}})
-    assert clean_settings({"link": {"mode": "nonsense"}})["link"] == {"mode": "when_mentioned", "track": False, "via_radar": False, "base": ""}
+    assert clean_settings({"link": {"mode": "nonsense"}})["link"] == {"mode": "when_mentioned", "track": False, "via_radar": False, "base": "", "pass_ref": True}
 
 
 def test_tracking_tags_each_platform():
