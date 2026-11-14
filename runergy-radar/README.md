@@ -1,0 +1,211 @@
+# Runergy Radar
+
+Finds public conversations where runners are asking for what Runergy Lab offers, drafts a
+reply in your voice, and puts both in an inbox. You read the draft, edit it if you like, and
+post it yourself with one click.
+
+- **Listens** on Reddit, Threads, running forums and the wider web for your trigger phrases.
+- **Scores** every conversation, so real questions rise and ads, memes and off-topic matches sink.
+- **Drafts** a helpful reply for each good match (Claude), following your description of the app.
+- **Never posts for you.** "Copy reply & open thread" puts the text on your clipboard and opens
+  the thread; you paste and post under your own account.
+
+It lives in this folder and is separate from the flight searcher in the rest of the repository.
+
+## Why it doesn't post automatically
+
+This is deliberate, and it protects the brand:
+
+- **Reddit** bans accounts that post automated promotional replies, and many running subreddits
+  remove self-promotion. A banned founder account is hard to undo.
+- **Facebook** offers no way for a tool to search public posts or groups, or to reply as a
+  personal account. Facebook is therefore not covered. (Comments on a Page you own could be added.)
+- A reply that reads like a person who knows running, with an honest "I'm part of the team",
+  converts far better than a bot reply and can't be mistaken for spam.
+
+## How conversations are found
+
+| Source | Covers | Cost | Needs |
+|---|---|---|---|
+| **Google search** (through SerpApi) | Reddit, Threads, forums: any sites you list | 1 SerpApi credit per search | `SERPAPI_API_KEY` |
+| **Google Alerts feeds** | The whole web, including Reddit and forums | Free | Feed links pasted into Settings |
+| **Any RSS/Atom feed** | A forum or blog you care about | Free | Feed link pasted into Settings |
+| **Bluesky search** | Bluesky posts, directly | Free | Nothing (or a free app password if Bluesky asks for a sign-in) |
+| **Threads search** (optional) | Threads posts, directly | Free | `THREADS_ACCESS_TOKEN` + Meta App Review |
+| **Facebook Page comments** (optional) | Comments on a Page you manage | Free | `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_TOKEN` |
+
+Things worth knowing:
+
+- **Reddit is reached through Google.** By the reports available in November 2026, Reddit has
+  switched off its RSS feeds and stopped accepting new apps for its public API, so reading Reddit
+  directly is no longer possible for a new tool. Google indexes Reddit quickly (usually within
+  hours), which is what the search and the alerts use. Expect threads to appear a few hours after
+  they are posted, not within seconds.
+- **Searches are rationed.** You set a number of Google searches per day (default 30). They are
+  spread evenly across the day and your trigger phrases take turns, so the budget can never be
+  overspent. 30 a day is about 900 a month, so check which SerpApi plan covers that. If you share
+  one SerpApi key with the flight searcher they share its quota; set `RADAR_SERPAPI_KEY` to give
+  the radar its own.
+- **Threads search is the least certain part.** It uses Meta's official keyword search. Until
+  Meta approves the `threads_keyword_search` permission for your Meta app (App Review), Meta only
+  returns your own posts. Without it, Threads posts are still found through Google search.
+  This connector was written from Meta's published API and could not be tried against Meta's
+  servers during development; if it misbehaves, the Sources page will say so. The same is true
+  of the Bluesky and Facebook Page connectors and of Telegram alerts.
+- **Reading the full page is best effort.** Many forums allow it; Reddit usually refuses, and
+  then the AI works from the search snippet as before.
+
+## Set it up (about 20 minutes)
+
+### 1. Put the dashboard online (Vercel)
+
+1. In Vercel choose **Add New → Project** and import this repository again (a second project).
+2. Set **Root Directory** to `runergy-radar`. Leave everything else as it is and deploy.
+3. In the project open **Storage → Create Database → Neon (Postgres)** and connect it to the
+   project. This adds `DATABASE_URL` for you.
+4. In **Settings → Environment Variables** add:
+
+   | Name | Value |
+   |---|---|
+   | `RADAR_PASSWORD` | A long password. You sign in to the dashboard with it. |
+   | `CRON_SECRET` | Any long random text. Lets the scheduled scan in. |
+   | `ANTHROPIC_API_KEY` | From console.anthropic.com. Enables scoring and draft replies. |
+   | `SERPAPI_API_KEY` | From serpapi.com. Enables the Google search source. |
+   | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Alerts on Telegram (see "Alerts" below). |
+   | `SMTP_USERNAME` + `SMTP_PASSWORD` + `EMAIL_TO` | Alerts by email (Gmail: use an App Password). |
+   | `THREADS_ACCESS_TOKEN` | Optional. A long-lived Threads API token. |
+   | `BLUESKY_HANDLE` + `BLUESKY_APP_PASSWORD` | Optional. Only if the Sources page says Bluesky wants a sign-in. |
+   | `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_TOKEN` | Optional. Comments on your own Facebook Page. |
+
+5. **Redeploy** so the variables take effect, open the site and sign in.
+
+The dashboard refuses to open online until `RADAR_PASSWORD` is set, and warns you in red if no
+database is connected.
+
+### 2. Turn on automatic scans (GitHub)
+
+In this repository open **Settings → Secrets and variables → Actions** and add two secrets:
+
+| Secret | Value |
+|---|---|
+| `RADAR_URL` | Your dashboard address, e.g. `https://your-radar.vercel.app` |
+| `CRON_SECRET` | The same value you gave Vercel |
+
+The workflow `.github/workflows/engagement-radar.yml` then asks the dashboard to scan every
+30 minutes. GitHub only runs schedules from the default branch, so this starts once this work is
+merged into `main`. (GitHub pauses schedules in repositories with no activity for 60 days and
+emails you first.) Vercel also triggers one scan a day as a backup.
+
+### 3. Tell it about your app (Settings page)
+
+- **Link in replies**: where replies send people. It starts as `https://runergylab.com`. Change
+  it at any time (for example to an App Store redirect once the app is live) and every reply you
+  haven't posted yet is updated to the new link. Choose whether the link appears when the app is
+  mentioned (default), in every reply, or only when you add it yourself. Optionally tag the link
+  per platform (`utm_source=reddit` and so on) to see in analytics where visitors came from.
+- **Your app and your voice**: the AI states only what you write here. It ships with the
+  Runergy Lab description (AI-powered training guidance from your wearable data, Garmin
+  integration, 5K to marathon). Add platforms and price when you want them mentioned.
+- **Topics and trigger phrases**: starter lists are included; tune them to how runners talk.
+- **Google Alerts**: follow the three steps shown on the Settings page to add free alert feeds.
+
+Then press **Scan now**.
+
+## Alerts
+
+Radar tells you about strong matches (score 85 or more by default) and, once a day, about replies
+worth checking back on. Connect either channel, or both:
+
+- **Telegram**: message `@BotFather`, send `/newbot`, and copy the token into `TELEGRAM_BOT_TOKEN`.
+  Send your new bot any message, then open
+  `https://api.telegram.org/bot<token>/getUpdates` and copy the `chat` `id` into `TELEGRAM_CHAT_ID`.
+- **Email**: set `SMTP_USERNAME`, `SMTP_PASSWORD` and `EMAIL_TO` (`SMTP_HOST`, `SMTP_PORT` and
+  `EMAIL_FROM` are optional; Gmail is the default and needs an App Password).
+
+Redeploy, then press **Send a test alert** under Settings → Alerts.
+
+## Counting clicks (and keeping old replies up to date)
+
+Under Settings → Link in replies, turn on **Count clicks**. Replies then carry a short link such
+as `https://go.runergylab.com/go/a1b2c3d4e5` that passes through Radar. You get clicks per reply,
+community, topic and phrase on the **Results** page, and whenever you change the link (for
+example to the App Store), every reply you ever posted follows it.
+
+Use an address on your own domain: in Vercel open the project's **Settings → Domains**, add
+`go.runergylab.com`, create the DNS record Vercel shows you, and enter
+`https://go.runergylab.com` as the address for short links. Link-preview robots are not counted.
+
+Counted links also hand your site the reply's code (`https://runergylab.com/?ref=a1b2c3d4e5`). If
+the app saves that `ref` on the new account at sign-up, sign-ups can later be traced back to the
+reply, community and phrase that produced them. A template of every setting is in `.env.example`.
+
+## Using it day to day
+
+- **To reply**: conversations on the left, best match first; the selected one opens on the
+  right with its draft. Edit it, press **Copy reply & open thread**, paste, post, then confirm
+  **Yes, mark as replied**. The next conversation opens by itself.
+- **Your link**: a chip under each reply shows whether your link is in it, or adds it in one click.
+- **Keyboard**: `J`/`K` next and previous, `C` copy and open, `R` replied, `S` save, `D` dismiss,
+  `E` edit, `/` search, `?` shows the list.
+- **Rewrite with AI**: ask for a change ("shorter", "don't mention the app").
+- **Check back**: a day after you reply, the conversation appears here so you can see whether
+  anyone answered. Mark it done or ask to be reminded again tomorrow.
+- **Guardrails**: a warning appears when you've replied often in one community that week, and
+  your own notes for that community (Settings → Communities) are shown and followed by the AI.
+- **Your voice**: the AI studies the replies you actually post, so drafts sound more like you
+  over time. It also reads the full page, where the site allows, so it doesn't repeat answers
+  already given.
+- **Results**: what was found, what you replied to and what brought clicks, by platform,
+  community, topic and trigger phrase. Phrases that never find anything worth a reply are
+  searched half as often.
+- **Save for later / Dismiss**: both are kept in their own tabs and can be moved back.
+- **Low relevance**: what the AI judged a poor fit. Nothing is ever deleted.
+- **Sources**: whether each source is working, today's search usage, and recent scans. If a key
+  expires or a feed breaks, it shows here in red with the reason.
+
+## What it costs
+
+- **Vercel and Neon**: the free plans are enough.
+- **SerpApi**: one credit per search; you choose the daily number.
+- **Claude**: one request per new conversation, using `claude-opus-5-5` by default. Expect a
+  few cents per conversation. "AI drafts per scan" caps it; set `RADAR_MODEL` to use another model.
+- **Google Alerts**: free.
+
+## Run it on your own computer
+
+```bash
+cd runergy-radar
+pip install -r requirements.txt
+python -m radar demo      # example conversations, no keys needed
+python -m radar serve     # http://localhost:8010
+python -m radar scan      # one real scan (uses whatever keys are set)
+```
+
+Locally it stores everything in `data/radar.db` and needs no password.
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q tests
+# also run the storage tests against Postgres:
+RADAR_TEST_POSTGRES=postgresql://user:pass@localhost:5432/db python -m pytest -q tests
+```
+
+## All settings read from the environment
+
+| Variable | Purpose |
+|---|---|
+| `RADAR_PASSWORD` | Dashboard password (required online). |
+| `CRON_SECRET` | Lets the scheduled workflow and Vercel's cron start a scan. |
+| `DATABASE_URL` | Postgres connection (also read: `POSTGRES_URL`, `RADAR_DATABASE_URL`). |
+| `ANTHROPIC_API_KEY` | Claude key for scoring and drafts. |
+| `RADAR_MODEL` | Claude model, default `claude-opus-5-5`. |
+| `SERPAPI_API_KEY` | SerpApi key (`RADAR_SERPAPI_KEY` takes priority if set). |
+| `THREADS_ACCESS_TOKEN` | Optional Threads API token; renewed automatically each week. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Telegram alerts. |
+| `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO` | Email alerts (`SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM` optional). |
+| `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` | Optional Bluesky sign-in for search. |
+| `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN` | Optional: comments on your own Facebook Page. |
+| `RADAR_URL` | Optional: the dashboard's address, used in alerts (learned automatically otherwise). |
+| `RADAR_DB` | Path of the local SQLite file. |
