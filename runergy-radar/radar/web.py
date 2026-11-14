@@ -18,10 +18,11 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
-from radar import __version__, ai, links
+from radar import __version__, ai, alerts, context, insights, links
+from radar.defaults import community_rules
 from radar.scan import ScanBusy, run_scan, serpapi_usage
-from radar.sources import serpapi, threads
-from radar.store import STATUSES, StoreError, is_persistent, shared_store
+from radar.sources import bluesky, facebook, serpapi, threads
+from radar.store import LISTS, STATUSES, StoreError, is_persistent, shared_store
 from radar.text import now_utc, stamp
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -33,6 +34,14 @@ MAX_BODY = 200_000
 LOGIN_WINDOW = 600
 LOGIN_ATTEMPTS = 10
 _THREAD_PATH = re.compile(r"^/api/threads/([0-9a-f]{20})(/draft)?$")
+_GO_PATH = re.compile(r"^/go/([0-9a-f]{6,20})$")
+
+
+def _public(settings: dict) -> dict:
+    """Settings as the page edits them, plus the address counted links would use by default."""
+    shown = {key: value for key, value in settings.items() if not key.startswith("_")}
+    shown["default_base"] = settings.get("_base", "")
+    return shown
 
 
 class ApiError(Exception):
@@ -100,6 +109,9 @@ def setup_status() -> list[dict]:
          "help": "Add SERPAPI_API_KEY to find new threads on Reddit, Threads and forums."},
         {"key": "cron", "ok": bool(cron_secret()) or not hosted(), "name": "Automatic scans",
          "help": "Add CRON_SECRET (and the same value in GitHub) so scans run by themselves."},
+        {"key": "alerts", "ok": bool(alerts.channels()), "name": "Alerts for hot matches",
+         "help": "Add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, or the SMTP_ email settings, "
+                 "to be told the moment a strong match appears."},
     ]
 
 
@@ -129,13 +141,44 @@ def sources_view(store, settings: dict) -> list[dict]:
     row("threads", "Threads search", "Threads",
         bool(threads.access_token()) and settings["threads_enabled"],
         "Optional. Needs THREADS_ACCESS_TOKEN from a Meta app approved for keyword search.")
+    row("bluesky", "Bluesky search", "Bluesky", settings["bluesky_enabled"],
+        "Free. Turn it on in Settings.",
+        "Signed in" if all(bluesky.credentials()) else "No sign-in (add BLUESKY_HANDLE if Bluesky asks for one)")
+    row("facebook", "Facebook Page comments", "Facebook", all(facebook.page()),
+        "Optional. Needs FACEBOOK_PAGE_ID and FACEBOOK_PAGE_TOKEN for a Page you manage.")
     for feed in settings["feeds"]:
         row(f"feed:{feed['url']}", feed["name"], "Feed", True, "")
     if not settings["feeds"]:
         rows.append({"key": "feeds", "name": "Google Alerts & feeds", "kind": "Feed", "state": "off",
                      "hint": "Free. Add Google Alerts feeds in Settings.", "detail": "", "at": "",
                      "last_ok": "", "found": 0, "message": ""})
+    health = store.get_meta("alerts_health", {})
+    found = alerts.channels()
+    rows.append({"key": "alerts", "name": "Alerts", "kind": " and ".join(c.capitalize() for c in found) or "Telegram or email",
+                 "state": "off" if not found or not settings["alerts"]["enabled"] else
+                 "waiting" if not health.get("at") else "ok" if health.get("ok") else "error",
+                 "hint": "Add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, or SMTP_USERNAME, SMTP_PASSWORD and EMAIL_TO.",
+                 "detail": f"For matches scoring {settings['alerts']['min_score']} or more", "at": "",
+                 "last_ok": "", "found": 0, "message": health.get("message", "")})
     return rows
+
+
+def decorate(store, settings: dict, items: list[dict]) -> list[dict]:
+    """Add what the page needs to each conversation: its link, clicks, and community guardrails."""
+    clicks = store.clicks_for([t["id"] for t in items])
+    week = store.replies_by_community(stamp(now_utc() - timedelta(days=7))) if items else {}
+    for thread in items:
+        rules = community_rules(settings, thread["community"])
+        mode = links.link_mode(settings, thread["community"])
+        thread["link"] = links.reply_link(settings, thread["platform"], thread["id"])
+        thread["link_allowed"] = mode != "never" or not rules.get("no_links")
+        thread["clicks"] = clicks.get(thread["id"], 0)
+        thread["community_replies"] = week.get(thread["community"].lower(), 0)
+        thread["community_notes"] = rules.get("notes", "")
+        thread["no_links"] = bool(rules.get("no_links"))
+        thread["has_page"] = bool(thread.pop("context", ""))
+        thread.pop("context_state", None)
+    return items
 
 
 def state_view(store) -> dict:
@@ -151,8 +194,11 @@ def state_view(store) -> dict:
         "setup": setup_status(),
         "sources": sources_view(store, settings),
         "topics": [topic["name"] for topic in settings["topics"]],
-        "links": links.all_links(settings),
         "link_mode": settings["link"]["mode"],
+        "counted_links": links.uses_radar(settings),
+        "weekly_limit": settings["community_weekly_limit"],
+        "alert_channels": alerts.channels(),
+        "base": settings.get("_base", ""),
         "ai": ai.is_configured() and settings["ai"]["enabled"],
         "password_set": bool(password()),
     }
@@ -161,19 +207,19 @@ def state_view(store) -> dict:
 # -- API -----------------------------------------------------------------------------------------
 def list_threads_api(store, query: dict) -> dict:
     status = query.get("status", "new")
-    if status not in STATUSES:
+    if status not in LISTS:
         raise ApiError(400, "Unknown tab.")
     try:
         offset = max(0, int(query.get("offset", "0")))
     except ValueError:
         offset = 0
-    default_sort = "best" if status in ("new", "saved", "filtered") else "recent"
+    default_sort = "best" if status in ("new", "saved", "filtered") else "due" if status == "followup" else "recent"
     items, total = store.list_threads(
         status=status, platform=query.get("platform", ""), topic=query.get("topic", ""),
         query=query.get("q", "")[:100], sort=query.get("sort") or default_sort,
         limit=30, offset=offset)
-    return {"threads": items, "total": total, "offset": offset,
-            "platforms": store.platform_counts(status)}
+    return {"threads": decorate(store, store.settings(), items), "total": total, "offset": offset,
+            "platforms": store.platform_counts("replied" if status == "followup" else status)}
 
 
 def update_thread_api(store, thread_id: str, body: dict) -> dict:
@@ -194,7 +240,19 @@ def update_thread_api(store, thread_id: str, body: dict) -> dict:
         if status == "replied":
             reply = str(body.get("reply_text") if "reply_text" in body else thread["draft"])[:6000]
         thread = store.set_status(thread_id, status, reply)
-    return {"thread": thread, "counts": store.counts()}
+        hours = store.settings()["followup_hours"]
+        due = stamp(now_utc() + timedelta(hours=hours)) if status == "replied" and hours else ""
+        thread = store.update_thread(thread_id, followup_at=due)      # leaving "replied" clears it
+    if "followup" in body:
+        # "done": stop reminding. A number: remind again in that many hours.
+        again = body.get("followup")
+        if again == "done":
+            thread = store.update_thread(thread_id, followup_at="")
+        elif isinstance(again, (int, float)) and 1 <= again <= 720:
+            thread = store.update_thread(thread_id, followup_at=stamp(now_utc() + timedelta(hours=again)))
+        else:
+            raise ApiError(400, "Unknown follow-up choice.")
+    return {"thread": decorate(store, store.settings(), [thread])[0], "counts": store.counts()}
 
 
 def draft_api(store, thread_id: str, body: dict) -> dict:
@@ -207,8 +265,15 @@ def draft_api(store, thread_id: str, body: dict) -> dict:
     if "draft" in body:
         thread["draft"] = str(body.get("draft") or "")[:6000]
     instruction = " ".join(str(body.get("instruction") or "").split())[:500]
+    page = thread.get("context") or ""
+    if not page and not thread.get("context_state") and settings["ai"]["read_page"] \
+            and thread["platform"] in ("web", "reddit"):
+        page = context.read_page(thread["url"], timeout=6)
+        store.update_thread(thread_id, context=page, context_state="read" if page else "none")
+    examples = store.recent_replies(8) if settings["ai"]["learn"] else []
     try:
-        verdict = ai.assess(thread, settings, instruction=instruction, timeout=45)
+        verdict = ai.assess(thread, settings, instruction=instruction, timeout=45,
+                            examples=examples, page_text=page)
     except ai.AIError as exc:
         store.update_thread(thread_id, draft_error=str(exc)[:300],
                             draft_state="error" if not thread["draft"].strip() else thread["draft_state"])
@@ -221,7 +286,27 @@ def draft_api(store, thread_id: str, body: dict) -> dict:
     updated = store.update_thread(
         thread_id, ai_score=verdict["relevance"], intent=verdict["intent"],
         ai_reason=verdict["reason"], draft=verdict["draft"], draft_state="ready", draft_error="")
-    return {"thread": updated}
+    return {"thread": decorate(store, settings, [updated])[0]}
+
+
+def go(store, code: str, user_agent: str, count: bool) -> str:
+    """Where a counted link leads (and count the click if a person followed it)."""
+    settings = store.settings()
+    thread = store.find_by_prefix(code)
+    target = links.destination(settings, thread["platform"] if thread else "")
+    if target and count and thread and links.is_person(user_agent):
+        store.add_click(thread["id"], now_utc().strftime("%Y-%m-%d"))
+    return target
+
+
+def test_alert_api(store) -> dict:
+    if not alerts.channels():
+        raise ApiError(400, "No alert channel is connected yet. Add the Telegram or email settings first.")
+    sent, problems = alerts.send("Radar: test alert",
+                                 "Alerts are working. You'll hear from Radar when a strong match appears.")
+    if problems and not sent:
+        raise ApiError(502, problems[0])
+    return {"sent": sent, "problems": problems}
 
 
 def scan_api(store) -> dict:
@@ -294,6 +379,15 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(400, "That request couldn't be read.")
         return data
 
+    def _remember_address(self, store) -> None:
+        """Note the address this dashboard is reached at (for alert links and counted links)."""
+        host = (self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or "").split(",")[0].strip()
+        if not host or not re.fullmatch(r"[A-Za-z0-9.\-]+(:\d+)?", host):
+            return
+        base = ("https" if self._secure() else "http") + "://" + host
+        if store.get_meta("public_base") != base:
+            store.set_meta("public_base", base)
+
     def _require_sign_in(self) -> None:
         if self._signed_in():
             return
@@ -329,6 +423,13 @@ class Handler(BaseHTTPRequestHandler):
                         "Content-Security-Policy":
                             "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
                             "img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"})
+                match = _GO_PATH.match(path)
+                if match:                       # public: this is the link inside posted replies
+                    target = go(shared_store(), match.group(1), self.headers.get("User-Agent") or "",
+                                count=self.command == "GET")
+                    if not target:
+                        raise ApiError(404, "Not found.")
+                    return self._send(302, b"", "text/plain", {"Location": target})
                 if path in IMAGES:
                     return self._send(200, (STATIC / path[1:]).read_bytes(), "image/png",
                                       {"Cache-Control": "public, max-age=86400"})
@@ -370,17 +471,28 @@ class Handler(BaseHTTPRequestHandler):
             return {"ok": True}
 
         self._require_sign_in()
+        if not (os.environ.get("RADAR_URL") or "").strip():
+            self._remember_address(store)
         if path == "/api/state" and method == "GET":
             return state_view(store)
+        if path == "/api/insights" and method == "GET":
+            return insights.build(store, store.settings(), now_utc())
+        if path == "/api/alerts/test" and method == "POST":
+            return test_alert_api(store)
         if path == "/api/threads" and method == "GET":
             return list_threads_api(store, query)
         if path == "/api/settings":
             if method == "GET":
-                return {"settings": store.settings()}
+                return {"settings": _public(store.settings())}
             before = store.settings()
-            saved = store.save_settings(self._body().get("settings"))
-            return {"settings": saved, "topics": [t["name"] for t in saved["topics"]],
-                    "links": links.all_links(saved), "link_mode": saved["link"]["mode"],
+            store.save_settings(self._body().get("settings"))
+            saved = store.settings()
+            if saved["link"]["via_radar"] and not links.short_base(saved):
+                store.save_settings(before)
+                raise ValueError("To count clicks, fill in the address the links should use.")
+            return {"settings": _public(saved), "topics": [t["name"] for t in saved["topics"]],
+                    "link_mode": saved["link"]["mode"], "counted_links": links.uses_radar(saved),
+                    "weekly_limit": saved["community_weekly_limit"],
                     "relinked": links.relink_drafts(store, before, saved)}
         match = _THREAD_PATH.match(path)
         if match and method == "POST":

@@ -12,7 +12,7 @@ import pytest
 
 from radar import ai, scan, web
 from radar.defaults import defaults
-from radar.sources import SourceError, feeds, serpapi, threads
+from radar.sources import SourceError, bluesky, feeds, serpapi, threads
 from radar.store import StoreError, shared_store
 from radar.text import Found, evaluate, stamp
 
@@ -55,7 +55,7 @@ def test_status_changes(store):
     tid = make(1)["id"]
     done = store.set_status(tid, "replied", "my reply")
     assert done["status"] == "replied" and done["reply_text"] == "my reply" and done["status_at"]
-    assert store.counts() == {"new": 0, "saved": 0, "replied": 1, "dismissed": 0, "filtered": 0}
+    assert store.counts() == {"new": 0, "saved": 0, "replied": 1, "dismissed": 0, "filtered": 0, "followup": 0}
     assert store.replied_since("2000-01-01T00:00:00Z") == 1
     with pytest.raises(StoreError):
         store.set_status(tid, "nonsense")
@@ -69,7 +69,7 @@ def test_meta_settings_and_lock(store):
     store.set_meta("k", {"a": 1})
     store.set_meta("k", {"a": 2})
     assert store.get_meta("k") == {"a": 2}
-    assert store.settings() == defaults()
+    assert store.settings() == {**defaults(), "_base": ""}
     saved = store.save_settings({"max_age_days": 5})
     assert saved["max_age_days"] == 5 and store.settings()["max_age_days"] == 5
     assert store.try_lock("scan", 60) and not store.try_lock("scan", 60)
@@ -78,8 +78,8 @@ def test_meta_settings_and_lock(store):
 
 
 # -- scanning -----------------------------------------------------------------------------------------
-def fake_sources(monkeypatch, search=None, feed=None, posts=None):
-    calls = {"search": [], "threads": []}
+def fake_sources(monkeypatch, search=None, feed=None, posts=None, skeets=None, pages=None):
+    calls = {"search": [], "threads": [], "bluesky": []}
 
     def do_search(phrase, sites, days, key, now):
         calls["search"].append(phrase)
@@ -88,6 +88,8 @@ def fake_sources(monkeypatch, search=None, feed=None, posts=None):
     monkeypatch.setattr(serpapi, "search", do_search)
     monkeypatch.setattr(feeds, "read_feed", lambda f, now=None: feed(f) if callable(feed) else (feed or []))
     monkeypatch.setattr(threads, "search", lambda p, token, now=None: (calls["threads"].append(p), posts or [])[1])
+    monkeypatch.setattr(bluesky, "search", lambda p, token="", now=None: (calls["bluesky"].append(p), skeets or [])[1])
+    monkeypatch.setattr(scan, "read_page", lambda url, timeout=8: pages.get(url, "") if pages else "")
     return calls
 
 
@@ -106,7 +108,8 @@ def test_scan_without_any_keys_does_nothing_and_says_so(store, monkeypatch):
     calls = fake_sources(monkeypatch)
     summary = scan.run_scan(store, now=NOW)
     assert (summary["seen"], summary["new"], summary["errors"]) == (0, 0, [])
-    assert calls == {"search": [], "threads": []}
+    assert calls["search"] == [] and calls["threads"] == []
+    assert len(calls["bluesky"]) == bluesky.PER_SCAN_CAP           # Bluesky is free and on by default
     assert store.get_meta("last_scan")["at"] == stamp(NOW)
 
 
@@ -377,7 +380,7 @@ def test_inbox_flow(client, monkeypatch):
     tid = make(1)["id"]
     state = client.call("/api/state")[1]
     assert state["counts"]["new"] == 2 and state["ai"] is False
-    assert {item["key"] for item in state["setup"]} == {"database", "ai", "search", "cron"}
+    assert {item["key"] for item in state["setup"]} == {"database", "ai", "search", "cron", "alerts"}
     listed = client.call("/api/threads?status=new&platform=reddit&q=running")[1]
     assert listed["total"] == 2 and listed["platforms"] == {"reddit": 2}
     assert client.call("/api/threads?status=bogus")[0] == 400

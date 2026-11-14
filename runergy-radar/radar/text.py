@@ -86,6 +86,8 @@ def canonical_url(url: str) -> str:
         match = _THREADS_POST.match(path)
         if match:
             return f"https://threads.com/@{match.group(1).lower()}/post/{match.group(2)}"
+    if host == "bsky.app":
+        return f"https://bsky.app{path.rstrip('/').lower()}"
     query = sorted((k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
                    if not _TRACKING.match(k))
     path = path.rstrip("/") or "/"
@@ -111,6 +113,11 @@ def platform_of(url: str) -> tuple[str, str]:
     if host in ("threads.net", "threads.com"):
         match = re.match(r"^/@([^/]+)", parts.path or "")
         return "threads", (f"@{match.group(1)}" if match else "Threads")
+    if host == "bsky.app":
+        match = re.match(r"^/profile/([^/]+)", parts.path or "")
+        return "bluesky", (f"@{match.group(1)}" if match else "Bluesky")
+    if host in ("facebook.com", "fb.com") or host.endswith(".facebook.com"):
+        return "facebook", "Your Facebook Page"
     return "web", host
 
 
@@ -211,6 +218,8 @@ def evaluate(found: Found, settings: dict, now: Optional[datetime] = None) -> Op
     on_topic = not context or any(has_phrase(f"{text}\n{community} {found.url}", w) for w in context)
     if not on_topic and not found.trusted:
         return None
+    if found.extra.get("own_page"):
+        on_topic = True
 
     score = 45 + 10 * min(literal, 3)
     if any(has_phrase(title, phrase) for phrase in matched):
@@ -221,6 +230,8 @@ def evaluate(found: Found, settings: dict, now: Optional[datetime] = None) -> Op
         score += 5
     if not on_topic:
         score -= 25
+    if found.extra.get("own_page"):
+        score += 20
 
     if not title:
         first = body.splitlines()[0]

@@ -22,11 +22,12 @@ def env(*names: str) -> str:
     return ""
 
 
-def fetch(url: str, params: dict | None = None, timeout: float = 15, what: str = "The site") -> requests.Response:
+def fetch(url: str, params: dict | None = None, timeout: float = 15, what: str = "The site",
+          headers: dict | None = None) -> requests.Response:
     """GET with a size cap and errors turned into plain sentences."""
     try:
         response = requests.get(url, params=params, timeout=timeout, stream=True,
-                                headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+                                headers={"User-Agent": USER_AGENT, "Accept": "*/*", **(headers or {})})
         body = response.raw.read(MAX_BYTES + 1, decode_content=True)
     except requests.Timeout as exc:
         raise SourceError(f"{what} took too long to answer.") from exc

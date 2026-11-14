@@ -28,7 +28,9 @@ DEFAULT_SETTINGS: dict = {
         "disclosure": "Full disclosure: I'm part of the team building Runergy Lab.",
     },
     # Where replies send people. "when_mentioned": added whenever a reply mentions the app.
-    "link": {"mode": "when_mentioned", "track": False},
+    # via_radar: links go through this dashboard (/go/...), which counts clicks and keeps old
+    # replies pointing at whatever the link is today. base: the address people see for those links.
+    "link": {"mode": "when_mentioned", "track": False, "via_radar": False, "base": ""},
     "topics": [
         {"name": "App recommendations", "phrases": [
             "best running app", "running app recommendation", "which running app",
@@ -56,7 +58,14 @@ DEFAULT_SETTINGS: dict = {
     "max_age_days": 3,
     "serpapi_daily_budget": 30,
     "threads_enabled": True,
-    "ai": {"enabled": True, "drafts_per_scan": 12, "min_relevance": 50},
+    "bluesky_enabled": True,
+    "smart_search": True,          # search phrases that never produce good matches half as often
+    "alerts": {"enabled": True, "min_score": 85},
+    "followup_hours": 24,          # after replying, remind to check back (0 = never)
+    "community_weekly_limit": 3,   # warn after this many replies in one community in 7 days (0 = off)
+    "communities": [],             # [{"name": "r/running", "notes": "...", "no_links": False}]
+    "ai": {"enabled": True, "drafts_per_scan": 12, "min_relevance": 50, "learn": True,
+           "read_page": True},
 }
 
 MAX_TOPICS = 20
@@ -138,7 +147,16 @@ def clean_settings(raw) -> dict:
         "mode": link.get("mode") if link.get("mode") in ("when_mentioned", "always", "never")
         else base["link"]["mode"],
         "track": bool(link.get("track", False)),
+        "via_radar": bool(link.get("via_radar", False)),
+        "base": _text(link.get("base", ""), 200).rstrip("/"),
     }
+    if out["link"]["base"]:
+        if "://" not in out["link"]["base"]:
+            out["link"]["base"] = "https://" + out["link"]["base"]
+        parts = urlparse(out["link"]["base"])
+        if parts.scheme not in ("http", "https") or "." not in parts.netloc or parts.path.strip("/"):
+            raise ValueError("The address for counted links must be a plain web address, "
+                             "like https://go.runergylab.com")
 
     if "topics" in raw:
         topics = []
@@ -185,13 +203,42 @@ def clean_settings(raw) -> dict:
     out["serpapi_daily_budget"] = _number(raw.get("serpapi_daily_budget"), 0, 2000,
                                           base["serpapi_daily_budget"])
     out["threads_enabled"] = bool(raw.get("threads_enabled", True))
+    out["bluesky_enabled"] = bool(raw.get("bluesky_enabled", True))
+    out["smart_search"] = bool(raw.get("smart_search", True))
+    alerts = raw.get("alerts") if isinstance(raw.get("alerts"), dict) else {}
+    out["alerts"] = {"enabled": bool(alerts.get("enabled", True)),
+                     "min_score": _number(alerts.get("min_score"), 1, 100, base["alerts"]["min_score"])}
+    out["followup_hours"] = _number(raw.get("followup_hours"), 0, 336, base["followup_hours"])
+    out["community_weekly_limit"] = _number(raw.get("community_weekly_limit"), 0, 50,
+                                            base["community_weekly_limit"])
+    if "communities" in raw:
+        communities = []
+        for item in raw["communities"] if isinstance(raw["communities"], list) else []:
+            if not isinstance(item, dict):
+                continue
+            name = _text(item.get("name"), 80)
+            if not name:
+                continue
+            if name.lower() in {c["name"].lower() for c in communities}:
+                raise ValueError(f"“{name}” is listed twice under Communities.")
+            communities.append({"name": name, "notes": _long_text(item.get("notes"), 600),
+                                "no_links": bool(item.get("no_links", False))})
+        out["communities"] = communities[:60]
     ai = raw.get("ai") if isinstance(raw.get("ai"), dict) else {}
     out["ai"] = {
         "enabled": bool(ai.get("enabled", True)),
         "drafts_per_scan": _number(ai.get("drafts_per_scan"), 0, 40, base["ai"]["drafts_per_scan"]),
         "min_relevance": _number(ai.get("min_relevance"), 0, 100, base["ai"]["min_relevance"]),
+        "learn": bool(ai.get("learn", True)),
+        "read_page": bool(ai.get("read_page", True)),
     }
     return out
+
+
+def community_rules(settings: dict, community: str) -> dict:
+    """Your notes for one community ({} when there are none)."""
+    wanted = (community or "").strip().lower()
+    return next((c for c in settings["communities"] if c["name"].lower() == wanted), {})
 
 
 def all_phrases(settings: dict) -> list[tuple[str, str]]:

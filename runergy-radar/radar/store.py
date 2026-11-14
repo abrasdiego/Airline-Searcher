@@ -21,10 +21,15 @@ DRAFT_STATES = ("none", "pending", "ready", "skip", "error")
 
 _COLUMNS = ("id", "platform", "community", "title", "body", "url", "author", "created_at",
             "found_at", "source", "matched", "topics", "kw_score", "ai_score", "intent",
-            "ai_reason", "draft", "draft_state", "draft_error", "status", "status_at", "reply_text")
+            "ai_reason", "draft", "draft_state", "draft_error", "status", "status_at", "reply_text",
+            "alerted", "context", "context_state", "followup_at")
+# Columns added after the first release: (name, definition). Added to existing databases on start.
+_ADDED = (("alerted", "TEXT NOT NULL DEFAULT ''"), ("context", "TEXT NOT NULL DEFAULT ''"),
+          ("context_state", "TEXT NOT NULL DEFAULT ''"), ("followup_at", "TEXT NOT NULL DEFAULT ''"))
 _JSON_COLUMNS = ("matched", "topics")
 _EDITABLE = {"ai_score", "intent", "ai_reason", "draft", "draft_state", "draft_error", "status",
-             "status_at", "reply_text"}
+             "status_at", "reply_text", "alerted", "context", "context_state", "followup_at"}
+LISTS = ("new", "saved", "replied", "dismissed", "filtered", "followup")   # what the inbox can show
 
 _SCHEMA = (
     """CREATE TABLE IF NOT EXISTS radar_threads (
@@ -49,7 +54,15 @@ _SCHEMA = (
         draft_error TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL DEFAULT 'new',
         status_at TEXT NOT NULL DEFAULT '',
-        reply_text TEXT NOT NULL DEFAULT ''
+        reply_text TEXT NOT NULL DEFAULT '',
+        alerted TEXT NOT NULL DEFAULT '',
+        context TEXT NOT NULL DEFAULT '',
+        context_state TEXT NOT NULL DEFAULT '',
+        followup_at TEXT NOT NULL DEFAULT ''
+    )""",
+    """CREATE TABLE IF NOT EXISTS radar_clicks (
+        thread_id TEXT NOT NULL, day TEXT NOT NULL, clicks INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (thread_id, day)
     )""",
     "CREATE INDEX IF NOT EXISTS radar_threads_status ON radar_threads (status, found_at)",
     "CREATE TABLE IF NOT EXISTS radar_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
@@ -141,6 +154,11 @@ class Store:
             with self._lock:
                 for statement in _SCHEMA:
                     self._run(statement)
+                for name, definition in _ADDED:      # bring an older database up to date
+                    try:
+                        self._run(f"SELECT {name} FROM radar_threads LIMIT 1", fetch=True)
+                    except StoreError:
+                        self._run(f"ALTER TABLE radar_threads ADD COLUMN {name} {definition}")
                 self._ready = True
         return self
 
@@ -167,7 +185,11 @@ class Store:
             (key, json.dumps(value)))
 
     def settings(self) -> dict:
-        return clean_settings(self.get_meta("settings"))
+        settings = clean_settings(self.get_meta("settings"))
+        # Where this dashboard lives on the web (for alert links and click-counting links).
+        settings["_base"] = (os.environ.get("RADAR_URL") or "").strip().rstrip("/") \
+            or self.get_meta("public_base", "")
+        return settings
 
     def save_settings(self, raw) -> dict:
         cleaned = clean_settings(raw)
@@ -253,7 +275,10 @@ class Store:
 
     def list_threads(self, status: str = "new", platform: str = "", topic: str = "", query: str = "",
                      sort: str = "best", limit: int = 30, offset: int = 0) -> tuple[list[dict], int]:
-        where, params = ["status = ?"], [status]
+        if status == "followup":
+            where, params = ["status = 'replied' AND followup_at <> '' AND followup_at <= ?"], [stamp(now_utc())]
+        else:
+            where, params = ["status = ?"], [status]
         if platform:
             where.append("platform = ?")
             params.append(platform)
@@ -268,6 +293,7 @@ class Store:
             "best": "COALESCE(ai_score, kw_score) DESC, found_at DESC, id",
             "newest": "CASE WHEN created_at = '' THEN found_at ELSE created_at END DESC, id",
             "recent": "status_at DESC, found_at DESC, id",
+            "due": "followup_at, id",
         }.get(sort, "COALESCE(ai_score, kw_score) DESC, found_at DESC, id")
         clause = " AND ".join(where)
         self.ready()
@@ -283,7 +309,70 @@ class Store:
             "SELECT status, COUNT(*) FROM radar_threads GROUP BY status", fetch=True)
         out = {status: 0 for status in STATUSES}
         out.update({status: int(count) for status, count in rows if status in out})
+        out["followup"] = self.followups_due(stamp(now_utc()))
         return out
+
+    def followups_due(self, now: str) -> int:
+        rows = self.ready()._run(
+            "SELECT COUNT(*) FROM radar_threads WHERE status = 'replied' AND followup_at <> '' "
+            "AND followup_at <= ?", (now,), fetch=True)
+        return int(rows[0][0])
+
+    def recent_replies(self, limit: int = 8) -> list[dict]:
+        """The replies most recently posted (used to teach the AI your voice)."""
+        rows = self.ready()._run(
+            f"SELECT {', '.join(_COLUMNS)} FROM radar_threads WHERE status = 'replied' "
+            "AND reply_text <> '' ORDER BY status_at DESC, id LIMIT ?", (limit,), fetch=True)
+        return [self._thread(row) for row in rows]
+
+    def replies_by_community(self, since: str) -> dict:
+        rows = self.ready()._run(
+            "SELECT LOWER(community), COUNT(*) FROM radar_threads WHERE status = 'replied' "
+            "AND status_at >= ? GROUP BY LOWER(community)", (since,), fetch=True)
+        return {community: int(count) for community, count in rows}
+
+    def hot_unalerted(self, since: str, minimum: int, need_ai: bool) -> list[dict]:
+        """New conversations scoring at least `minimum` that no alert has gone out for."""
+        score = "ai_score" if need_ai else "COALESCE(ai_score, kw_score)"
+        rows = self.ready()._run(
+            f"SELECT {', '.join(_COLUMNS)} FROM radar_threads WHERE status = 'new' AND alerted = '' "
+            f"AND found_at >= ? AND {score} >= ? ORDER BY {score} DESC, id LIMIT 10",
+            (since, minimum), fetch=True)
+        return [self._thread(row) for row in rows]
+
+    def threads_since(self, since: str) -> list[dict]:
+        rows = self.ready()._run(
+            f"SELECT {', '.join(_COLUMNS)} FROM radar_threads WHERE found_at >= ? OR status_at >= ?",
+            (since, since), fetch=True)
+        return [self._thread(row) for row in rows]
+
+    def find_by_prefix(self, prefix: str) -> Optional[dict]:
+        rows = self.ready()._run(
+            f"SELECT {', '.join(_COLUMNS)} FROM radar_threads WHERE id LIKE ? ESCAPE '!' LIMIT 1",
+            (_like(prefix) + "%",), fetch=True)
+        return self._thread(rows[0]) if rows else None
+
+    # -- clicks on links that go through Radar -------------------------------------------------
+    def add_click(self, thread_id: str, day: str) -> None:
+        self.ready()._run(
+            "INSERT INTO radar_clicks (thread_id, day, clicks) VALUES (?, ?, 1) "
+            "ON CONFLICT (thread_id, day) DO UPDATE SET clicks = radar_clicks.clicks + 1",
+            (thread_id, day))
+
+    def clicks_for(self, thread_ids: list[str]) -> dict:
+        if not thread_ids:
+            return {}
+        marks = ",".join("?" * len(thread_ids))
+        rows = self.ready()._run(
+            f"SELECT thread_id, SUM(clicks) FROM radar_clicks WHERE thread_id IN ({marks}) "
+            "GROUP BY thread_id", thread_ids, fetch=True)
+        return {thread_id: int(total) for thread_id, total in rows}
+
+    def clicks_since(self, day: str) -> dict:
+        rows = self.ready()._run(
+            "SELECT thread_id, SUM(clicks) FROM radar_clicks WHERE day >= ? GROUP BY thread_id",
+            (day,), fetch=True)
+        return {thread_id: int(total) for thread_id, total in rows}
 
     def platform_counts(self, status: str) -> dict:
         rows = self.ready()._run(
@@ -315,6 +404,7 @@ class Store:
 
     def clear_threads(self) -> None:
         self.ready()._run("DELETE FROM radar_threads")
+        self.ready()._run("DELETE FROM radar_clicks")
 
 
 def _like(text: str) -> str:

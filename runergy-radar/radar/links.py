@@ -1,7 +1,10 @@
 """The link that goes into replies: one place decides it, so it can be changed at any time.
 
-Today it points to the website; later it can point to an App Store redirect. Changing it in
-Settings also updates every reply that has not been posted yet.
+Two ways to link:
+- directly to your address (https://runergylab.com), or
+- through Radar (https://go.runergylab.com/go/ab12cd34ef), which counts clicks per reply and
+  always forwards to whatever your address is today, so replies posted months ago follow you to
+  the App Store when you change it.
 """
 
 from __future__ import annotations
@@ -9,18 +12,31 @@ from __future__ import annotations
 import re
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from radar.defaults import community_rules
+
 MODES = ("when_mentioned", "always", "never")
-PLATFORM_TAGS = {"reddit": "reddit", "threads": "threads", "web": "forum"}
+PLATFORM_TAGS = {"reddit": "reddit", "threads": "threads", "bluesky": "bluesky",
+                 "facebook": "facebook", "web": "forum"}
+CODE_LENGTH = 10
 _PATH = r"(?:/[^\s<>\"')\]]*)?"
 _TRAILING = ".,;:!?"
+_BOTS = re.compile(r"bot|crawl|spider|preview|fetch|scan|monitor|facebookexternalhit|slack|discord|"
+                   r"whatsapp|telegram|curl|wget|python|headless|embed", re.I)
 
 
-def reply_link(settings: dict, platform: str = "") -> str:
-    """The link for a reply on this platform ('' when no link is set)."""
+def short_base(settings: dict) -> str:
+    """The web address counted links start with ('' when unknown)."""
+    return settings["link"]["base"] or settings.get("_base", "")
+
+
+def uses_radar(settings: dict) -> bool:
+    return bool(settings["link"]["via_radar"] and settings["brand"]["url"] and short_base(settings))
+
+
+def destination(settings: dict, platform: str = "") -> str:
+    """Where a reader ends up: your address, tagged for analytics if you asked for that."""
     base = settings["brand"]["url"]
-    if not base:
-        return ""
-    if not settings["link"]["track"] or platform not in PLATFORM_TAGS:
+    if not base or not settings["link"]["track"] or platform not in PLATFORM_TAGS:
         return base
     parts = urlparse(base)
     query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
@@ -30,8 +46,25 @@ def reply_link(settings: dict, platform: str = "") -> str:
     return urlunparse(parts._replace(query=urlencode(query)))
 
 
-def all_links(settings: dict) -> dict:
-    return {platform: reply_link(settings, platform) for platform in PLATFORM_TAGS}
+def reply_link(settings: dict, platform: str = "", thread_id: str = "") -> str:
+    """The link to put in a reply ('' when no link is set)."""
+    if not settings["brand"]["url"]:
+        return ""
+    if thread_id and uses_radar(settings):
+        return f"{short_base(settings)}/go/{thread_id[:CODE_LENGTH]}"
+    return destination(settings, platform)
+
+
+def link_mode(settings: dict, community: str = "") -> str:
+    """'never' for communities you marked as not allowing links."""
+    if community_rules(settings, community).get("no_links"):
+        return "never"
+    return settings["link"]["mode"]
+
+
+def is_person(user_agent: str) -> bool:
+    """False for link-preview robots and crawlers, so they don't count as clicks."""
+    return bool(user_agent) and not _BOTS.search(user_agent)
 
 
 def _host(url: str) -> str:
@@ -43,17 +76,12 @@ def _same_site(host: str) -> re.Pattern:
     return re.compile(rf"(?<![\w@/.\-])(?:https?://)?(?:www\.)?{re.escape(host)}{_PATH}", re.I)
 
 
-def has_link(draft: str, link: str) -> bool:
-    return bool(link) and link in draft
-
-
-def enforce(draft: str, settings: dict, platform: str) -> str:
+def enforce(draft: str, settings: dict, platform: str, thread_id: str = "", community: str = "") -> str:
     """Make an AI-written reply carry exactly the chosen link, exactly as Settings says."""
-    link = reply_link(settings, platform)
-    mode = settings["link"]["mode"]
+    link = reply_link(settings, platform, thread_id)
+    mode = link_mode(settings, community)
     if not draft.strip() or not link:
         return draft
-    pattern = _same_site(_host(link))
 
     def swap(match: re.Match) -> str:
         found = match.group(0)
@@ -62,7 +90,9 @@ def enforce(draft: str, settings: dict, platform: str) -> str:
             found, tail = found[:-1], found[-1] + tail
         return ("" if mode == "never" else link) + tail
 
-    draft = pattern.sub(swap, draft)
+    hosts = {_host(link), _host(settings["brand"]["url"])}
+    for host in sorted(hosts, key=len, reverse=True):
+        draft = _same_site(host).sub(swap, draft)
     if mode == "never":
         return re.sub(r"[ \t]+\n", "\n", draft).strip()
     mentioned = settings["brand"]["name"].lower() in draft.lower()
@@ -81,20 +111,24 @@ def replace_link(draft: str, old: str, new: str) -> str:
 
 def relink_drafts(store, before: dict, after: dict) -> int:
     """After the link changes, update it in every reply that hasn't been posted. Returns how many."""
-    olds, news = all_links(before), all_links(after)
-    plain_old, plain_new = before["brand"]["url"], after["brand"]["url"]
-    if olds == news or not plain_old or not plain_new:
+    if not before["brand"]["url"] or not after["brand"]["url"]:
         return 0
-    changed = 0
-    for thread in store.drafts_containing(_host(plain_old)):
-        platform = thread["platform"]
-        draft = thread["draft"]
-        # the tracked form first (it contains the plain one), then the plain one
-        pairs = sorted({(olds.get(platform, plain_old), news.get(platform, plain_new)),
-                        (plain_old, news.get(platform, plain_new))}, key=lambda p: -len(p[0]))
-        for old, new in pairs:
-            draft = replace_link(draft, old, new)
-        if draft != thread["draft"]:
-            store.update_thread(thread["id"], draft=draft)
-            changed += 1
+    hosts = {_host(before["brand"]["url"])}
+    if uses_radar(before):
+        hosts.add(_host(short_base(before)))
+    seen, changed = set(), 0
+    for host in hosts:
+        for thread in store.drafts_containing(host):
+            if thread["id"] in seen:
+                continue
+            seen.add(thread["id"])
+            new = reply_link(after, thread["platform"], thread["id"])
+            olds = {reply_link(before, thread["platform"], thread["id"]),
+                    destination(before, thread["platform"]), before["brand"]["url"]}
+            draft = thread["draft"]
+            for old in sorted(olds, key=len, reverse=True):      # longest first: it contains the others
+                draft = replace_link(draft, old, new)
+            if draft != thread["draft"]:
+                store.update_thread(thread["id"], draft=draft)
+                changed += 1
     return changed

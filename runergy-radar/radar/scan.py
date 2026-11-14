@@ -13,9 +13,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from radar import ai
+from radar import ai, alerts, context, insights
 from radar.defaults import all_phrases
-from radar.sources import SourceError, feeds, serpapi, threads
+from radar.sources import SourceError, bluesky, facebook, feeds, serpapi, threads
 from radar.store import Store
 from radar.text import Found, evaluate, now_utc, stamp
 
@@ -81,7 +81,11 @@ def gather(store: Store, settings: dict, now: datetime, deadline: float) -> tupl
     usage = serpapi_usage(store, now)
     if key and phrases and settings["serpapi_daily_budget"] > 0:
         allowed = serpapi.allowance(settings["serpapi_daily_budget"], usage["count"], now)
-        picked, cursor = _rotate(phrases, int(store.get_meta("serpapi_cursor", 0)), allowed)
+        # Paid searches go where they pay off: phrases that keep finding nothing worth a reply
+        # sit out every second round.
+        weak = insights.weak_phrases(store, settings, now) if settings["smart_search"] else set()
+        schedule = phrases + ([p for p in phrases if p.lower() not in weak] or phrases)
+        picked, cursor = _rotate(schedule, int(store.get_meta("serpapi_cursor", 0)), allowed)
         if picked:
             # Counted before searching so a crash can never overspend the budget.
             store.set_meta("serpapi_usage", {"date": usage["date"], "count": usage["count"] + len(picked)})
@@ -102,6 +106,22 @@ def gather(store: Store, settings: dict, now: datetime, deadline: float) -> tupl
             store.set_meta("threads_cursor", cursor)
             for phrase in picked:
                 jobs.append(("threads", lambda p=phrase: threads.search(p, token, now)))
+
+    # Bluesky search (free).
+    if settings["bluesky_enabled"] and phrases:
+        picked, cursor = _rotate(phrases, int(store.get_meta("bluesky_cursor", 0)), bluesky.PER_SCAN_CAP)
+        store.set_meta("bluesky_cursor", cursor)
+        try:
+            session = bluesky.sign_in() if all(bluesky.credentials()) else ""
+            for phrase in picked:
+                jobs.append(("bluesky", lambda p=phrase: bluesky.search(p, session, now)))
+        except SourceError as exc:
+            jobs.append(("bluesky", lambda e=exc: (_ for _ in ()).throw(e)))
+
+    # Comments on your own Facebook Page.
+    page_id, page_token = facebook.page()
+    if page_id and page_token:
+        jobs.append(("facebook", lambda: facebook.comments(page_id, page_token, now)))
 
     # Feeds (Google Alerts and anything else added in Settings).
     for feed in settings["feeds"]:
@@ -138,7 +158,7 @@ def gather(store: Store, settings: dict, now: datetime, deadline: float) -> tupl
     for note in notes:
         errors.append(note)
     # Keep the last known health of sources that didn't run this time (still configured ones only).
-    wanted = {"search", "threads"} | {f"feed:{feed['url']}" for feed in settings["feeds"]}
+    wanted = {"search", "threads", "bluesky", "facebook"} | {f"feed:{feed['url']}" for feed in settings["feeds"]}
     for name, entry in health_before.items():
         if name in wanted and name not in health:
             health[name] = entry
@@ -150,6 +170,10 @@ def label(name: str, settings: dict) -> str:
         return "Google search"
     if name == "threads":
         return "Threads"
+    if name == "bluesky":
+        return "Bluesky"
+    if name == "facebook":
+        return "Facebook Page"
     if name.startswith("feed:"):
         url = name[5:]
         return next((f["name"] for f in settings["feeds"] if f["url"] == url), "Feed")
@@ -174,6 +198,16 @@ def apply_assessment(store: Store, thread: dict, verdict: dict, settings: dict) 
     return updated
 
 
+def needs_page(thread: dict, settings: dict) -> bool:
+    """Search results and feeds only carry a snippet; posts from Threads/Bluesky/Facebook are whole."""
+    return (settings["ai"]["read_page"] and not thread.get("context_state")
+            and thread["platform"] in ("web", "reddit"))
+
+
+def read_page(url: str, timeout: float = 8) -> str:
+    return context.read_page(url, timeout=timeout)
+
+
 def draft_waiting(store: Store, settings: dict, now: datetime, deadline: float,
                   assess: Callable = ai.assess) -> tuple[int, int, list[str]]:
     """Have the AI read conversations that are waiting. Returns (read, drafted, problems)."""
@@ -184,21 +218,31 @@ def draft_waiting(store: Store, settings: dict, now: datetime, deadline: float,
     if not waiting:
         return 0, 0, []
 
+    examples = store.recent_replies(8) if settings["ai"]["learn"] else []
+
     def work(thread: dict):
         remaining = deadline - time.monotonic()
         if remaining < 12:
-            return thread, None, None           # no time left: stays waiting for the next scan
+            return thread, None, None, None     # no time left: stays waiting for the next scan
+        page = None
+        if needs_page(thread, settings):
+            page = read_page(thread["url"], timeout=min(8.0, remaining / 4))
         try:
-            return thread, assess(thread, settings, timeout=min(40.0, remaining - 3)), None
+            remaining = deadline - time.monotonic()
+            verdict = assess(thread, settings, timeout=min(40.0, max(8.0, remaining - 3)),
+                             examples=examples, page_text=page or thread.get("context") or "")
+            return thread, verdict, None, page
         except ai.AIError as exc:
-            return thread, None, str(exc)
+            return thread, None, str(exc), page
         except Exception as exc:
-            return thread, None, f"Unexpected problem ({type(exc).__name__})."
+            return thread, None, f"Unexpected problem ({type(exc).__name__}).", page
 
     read = drafted = 0
     problems: list[str] = []
     with ThreadPoolExecutor(max_workers=4) as pool:
-        for thread, verdict, problem in pool.map(work, waiting):
+        for thread, verdict, problem, page in pool.map(work, waiting):
+            if page is not None:
+                store.update_thread(thread["id"], context=page, context_state="read" if page else "none")
             if verdict is not None:
                 read += 1
                 updated = apply_assessment(store, thread, verdict, settings)
@@ -230,6 +274,10 @@ def run_scan(store: Store, time_budget: float = 50.0, now: Optional[datetime] = 
         added = store.add_threads(threads_found)
 
         read, drafted, ai_errors = draft_waiting(store, settings, now, deadline, assess)
+        try:
+            alerted, alert_errors = alerts.notify(store, settings, now, use_ai)
+        except Exception as exc:             # an alert problem must never fail the scan
+            alerted, alert_errors = 0, [f"Alerts: unexpected problem ({type(exc).__name__})."]
         summary = {
             "at": stamp(now),
             "seconds": round(time.monotonic() - started, 1),
@@ -237,7 +285,8 @@ def run_scan(store: Store, time_budget: float = 50.0, now: Optional[datetime] = 
             "new": len(added),
             "read_by_ai": read,
             "drafted": drafted,
-            "errors": (errors + ai_errors)[:10],
+            "alerted": alerted,
+            "errors": (errors + ai_errors + alert_errors)[:10],
         }
         store.set_meta("last_scan", summary)
         store.set_meta("scan_log", ([summary] + store.get_meta("scan_log", []))[:LOG_LENGTH])

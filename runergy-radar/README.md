@@ -30,7 +30,9 @@ This is deliberate, and it protects the brand:
 | **Google search** (through SerpApi) | Reddit, Threads, forums: any sites you list | 1 SerpApi credit per search | `SERPAPI_API_KEY` |
 | **Google Alerts feeds** | The whole web, including Reddit and forums | Free | Feed links pasted into Settings |
 | **Any RSS/Atom feed** | A forum or blog you care about | Free | Feed link pasted into Settings |
+| **Bluesky search** | Bluesky posts, directly | Free | Nothing (or a free app password if Bluesky asks for a sign-in) |
 | **Threads search** (optional) | Threads posts, directly | Free | `THREADS_ACCESS_TOKEN` + Meta App Review |
+| **Facebook Page comments** (optional) | Comments on a Page you manage | Free | `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_TOKEN` |
 
 Things worth knowing:
 
@@ -48,7 +50,10 @@ Things worth knowing:
   Meta approves the `threads_keyword_search` permission for your Meta app (App Review), Meta only
   returns your own posts. Without it, Threads posts are still found through Google search.
   This connector was written from Meta's published API and could not be tried against Meta's
-  servers during development; if it misbehaves, the Sources page will say so.
+  servers during development; if it misbehaves, the Sources page will say so. The same is true
+  of the Bluesky and Facebook Page connectors and of Telegram alerts.
+- **Reading the full page is best effort.** Many forums allow it; Reddit usually refuses, and
+  then the AI works from the search snippet as before.
 
 ## Set it up (about 20 minutes)
 
@@ -66,7 +71,11 @@ Things worth knowing:
    | `CRON_SECRET` | Any long random text. Lets the scheduled scan in. |
    | `ANTHROPIC_API_KEY` | From console.anthropic.com. Enables scoring and draft replies. |
    | `SERPAPI_API_KEY` | From serpapi.com. Enables the Google search source. |
+   | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Alerts on Telegram (see "Alerts" below). |
+   | `SMTP_USERNAME` + `SMTP_PASSWORD` + `EMAIL_TO` | Alerts by email (Gmail: use an App Password). |
    | `THREADS_ACCESS_TOKEN` | Optional. A long-lived Threads API token. |
+   | `BLUESKY_HANDLE` + `BLUESKY_APP_PASSWORD` | Optional. Only if the Sources page says Bluesky wants a sign-in. |
+   | `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_TOKEN` | Optional. Comments on your own Facebook Page. |
 
 5. **Redeploy** so the variables take effect, open the site and sign in.
 
@@ -102,6 +111,30 @@ emails you first.) Vercel also triggers one scan a day as a backup.
 
 Then press **Scan now**.
 
+## Alerts
+
+Radar tells you about strong matches (score 85 or more by default) and, once a day, about replies
+worth checking back on. Connect either channel, or both:
+
+- **Telegram**: message `@BotFather`, send `/newbot`, and copy the token into `TELEGRAM_BOT_TOKEN`.
+  Send your new bot any message, then open
+  `https://api.telegram.org/bot<token>/getUpdates` and copy the `chat` `id` into `TELEGRAM_CHAT_ID`.
+- **Email**: set `SMTP_USERNAME`, `SMTP_PASSWORD` and `EMAIL_TO` (`SMTP_HOST`, `SMTP_PORT` and
+  `EMAIL_FROM` are optional; Gmail is the default and needs an App Password).
+
+Redeploy, then press **Send a test alert** under Settings → Alerts.
+
+## Counting clicks (and keeping old replies up to date)
+
+Under Settings → Link in replies, turn on **Count clicks**. Replies then carry a short link such
+as `https://go.runergylab.com/go/a1b2c3d4e5` that passes through Radar. You get clicks per reply,
+community, topic and phrase on the **Results** page, and whenever you change the link (for
+example to the App Store), every reply you ever posted follows it.
+
+Use an address on your own domain: in Vercel open the project's **Settings → Domains**, add
+`go.runergylab.com`, create the DNS record Vercel shows you, and enter
+`https://go.runergylab.com` as the address for short links. Link-preview robots are not counted.
+
 ## Using it day to day
 
 - **To reply**: conversations on the left, best match first; the selected one opens on the
@@ -111,6 +144,16 @@ Then press **Scan now**.
 - **Keyboard**: `J`/`K` next and previous, `C` copy and open, `R` replied, `S` save, `D` dismiss,
   `E` edit, `/` search, `?` shows the list.
 - **Rewrite with AI**: ask for a change ("shorter", "don't mention the app").
+- **Check back**: a day after you reply, the conversation appears here so you can see whether
+  anyone answered. Mark it done or ask to be reminded again tomorrow.
+- **Guardrails**: a warning appears when you've replied often in one community that week, and
+  your own notes for that community (Settings → Communities) are shown and followed by the AI.
+- **Your voice**: the AI studies the replies you actually post, so drafts sound more like you
+  over time. It also reads the full page, where the site allows, so it doesn't repeat answers
+  already given.
+- **Results**: what was found, what you replied to and what brought clicks, by platform,
+  community, topic and trigger phrase. Phrases that never find anything worth a reply are
+  searched half as often.
 - **Save for later / Dismiss**: both are kept in their own tabs and can be moved back.
 - **Low relevance**: what the AI judged a poor fit. Nothing is ever deleted.
 - **Sources**: whether each source is working, today's search usage, and recent scans. If a key
@@ -156,4 +199,9 @@ RADAR_TEST_POSTGRES=postgresql://user:pass@localhost:5432/db python -m pytest -q
 | `RADAR_MODEL` | Claude model, default `claude-opus-5-5`. |
 | `SERPAPI_API_KEY` | SerpApi key (`RADAR_SERPAPI_KEY` takes priority if set). |
 | `THREADS_ACCESS_TOKEN` | Optional Threads API token; renewed automatically each week. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Telegram alerts. |
+| `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO` | Email alerts (`SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM` optional). |
+| `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` | Optional Bluesky sign-in for search. |
+| `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN` | Optional: comments on your own Facebook Page. |
+| `RADAR_URL` | Optional: the dashboard's address, used in alerts (learned automatically otherwise). |
 | `RADAR_DB` | Path of the local SQLite file. |

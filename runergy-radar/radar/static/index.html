@@ -164,6 +164,7 @@ h2 { font-size: 16px; letter-spacing: -.01em; margin: 0 0 4px; }
 .item .flag svg { width: 13px; height: 13px; color: var(--accent); }
 .pdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .pdot.reddit { background: var(--reddit); } .pdot.threads { background: var(--threads); } .pdot.web { background: var(--web); }
+.pdot.bluesky { background: #3b9dff; } .pdot.facebook { background: #5b7fe8; }
 
 .detail { position: sticky; top: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow);
   padding: 22px 24px; max-height: calc(100vh - 40px); overflow-y: auto; }
@@ -208,6 +209,28 @@ button.linkstate:hover { color: var(--ink); border-color: var(--line-2); }
 .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 14px;
   background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
 .confirm span { flex: 1; min-width: 180px; }
+.guard { display: flex; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; border: 1px solid var(--line); color: var(--ink-2); }
+.guard.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.guard svg { margin-top: 1px; color: var(--muted); } .guard.warn svg { color: var(--warn); }
+.guard b { font-weight: 600; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--ink); font-variant-numeric: tabular-nums; }
+table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.t th { text-align: right; font-weight: 600; font-size: 12.5px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.t th:first-child, table.t td:first-child { text-align: left; padding-left: 0; }
+table.t td { text-align: right; padding: 9px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+table.t tr:last-child td { border-bottom: 0; }
+table.t td.name { overflow-wrap: anywhere; }
+table.t td.barcell { width: 26%; min-width: 80px; }
+.hbar { height: 6px; border-radius: 999px; background: var(--sunken); overflow: hidden; }
+.hbar i { display: block; height: 100%; border-radius: 999px; background: var(--accent-2); min-width: 2px; }
+.muted-tag { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); margin-left: 8px; white-space: nowrap; }
+.scroll-x { overflow-x: auto; }
+.comm { border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; background: var(--sunken); }
+.comm .topic-head { align-items: center; }
+.comm textarea { width: 100%; min-height: 60px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--surface); resize: vertical; line-height: 1.5; }
+.comm .check { margin: 8px 0 0; font-weight: 500; font-size: 14px; }
+.chan { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
 .posted { padding: 12px 14px; border-radius: 14px; background: var(--sunken); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-2); }
 .empty { text-align: center; padding: 56px 16px; color: var(--muted); border: 1px dashed var(--line-2); border-radius: 20px; }
 .empty .orb { width: 54px; height: 54px; border-radius: 16px; margin: 0 auto 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
@@ -295,7 +318,7 @@ ol.steps li { margin: 4px 0; }
     border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); }
   .mobile-top .logo { padding: 0; flex: 1; }
   .mobile-top .logo img { width: 32px; height: 32px; }
-  .tabbar { display: grid; grid-template-columns: repeat(3, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); }
   .tabbar button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border: 0; background: none; color: var(--muted); font-size: 11.5px; font-weight: 600; cursor: pointer; border-radius: 10px; }
   .tabbar button[aria-current="page"] { color: var(--ink); }
@@ -303,7 +326,7 @@ ol.steps li { margin: 4px 0; }
   .tabbar .n { position: absolute; top: 0; left: calc(50% + 6px); min-width: 17px; padding: 0 5px; border-radius: 999px; font-size: 10.5px; background: var(--brand); color: var(--accent-ink); }
   main { padding: 18px 16px 96px; }
   #toasts { bottom: 80px; }
-  .settings { grid-template-columns: 1fr; } .toc { display: none; }
+  .settings { grid-template-columns: minmax(0, 1fr); } .toc { display: none; }
   .split { grid-template-columns: 1fr; }
   .split .detail { display: none; }
   .split.open .list { display: none; }
@@ -332,8 +355,9 @@ ol.steps li { margin: 4px 0; }
 <script>
 "use strict";
 (function () {
-  const TABS = [["new", "To reply"], ["saved", "Saved"], ["replied", "Replied"], ["dismissed", "Dismissed"], ["filtered", "Low relevance"]];
-  const PLATFORMS = { reddit: "Reddit", threads: "Threads", web: "Forums & web" };
+  const TABS = [["new", "To reply"], ["followup", "Check back"], ["saved", "Saved"], ["replied", "Replied"], ["dismissed", "Dismissed"], ["filtered", "Low relevance"]];
+  const PLATFORMS = { reddit: "Reddit", threads: "Threads", bluesky: "Bluesky", facebook: "Facebook", web: "Forums & web" };
+  const LIMITS = { threads: 500, bluesky: 300 };
   const LOGO = '<img src="/logo-64.png" srcset="/logo-192.png 3x" alt=""><span>Runergy Radar<small>by Runergy Lab</small></span>';
   const ICONS = {
     inbox: '<path d="M4 13l2.2-7.2A2 2 0 0 1 8.1 4.4h7.8a2 2 0 0 1 1.9 1.4L20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M4 13h4.5l1 2.5h5l1-2.5H20"/>',
@@ -348,10 +372,14 @@ ol.steps li { margin: 4px 0; }
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     pen: '<path d="M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/>',
-    done: '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/>'
+    done: '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/>',
+    chart: '<path d="M5 20V10M12 20V4M19 20v-7"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    alert: '<path d="M12 4l9 15.5H3zM12 10v4M12 17v.5"/>'
   };
   const S = { view: "inbox", tab: "new", platform: "", topic: "", sort: "", q: "", app: null, threads: [], total: 0,
-              platforms: {}, settings: null, dirty: false, scanning: false, login: false, lock: "", selected: null, open: false, help: false };
+              platforms: {}, settings: null, dirty: false, scanning: false, login: false, lock: "", selected: null, open: false, help: false, insights: null };
   const root = document.getElementById("app");
   const wide = () => window.matchMedia("(min-width: 1081px)").matches;
 
@@ -455,7 +483,7 @@ ol.steps li { margin: 4px 0; }
   const current = () => S.threads.find(t => t.id === S.selected) || null;
 
   // ---- shell --------------------------------------------------------------------------------------
-  const NAV = [["inbox", "Inbox", "inbox"], ["sources", "Sources", "signal"], ["settings", "Settings", "sliders"]];
+  const NAV = [["inbox", "Inbox", "inbox"], ["insights", "Results", "chart"], ["sources", "Sources", "signal"], ["settings", "Settings", "sliders"]];
   function navBadge(key) {
     if (key === "inbox" && S.app.counts.new) return h("span", { class: "n", text: S.app.counts.new });
     if (key === "sources" && S.app.sources.some(s => s.state === "error")) return h("span", { class: "alert", title: "A source has a problem" });
@@ -489,6 +517,7 @@ ol.steps li { margin: 4px 0; }
     S.dirty = false; S.view = view; S.open = false;
     if (view === "settings") { S.settings = null; render(); try { S.settings = (await api("/api/settings")).settings; } catch (e) { fail(e); } }
     else if (view === "inbox") { try { await loadThreads(false); } catch (e) { fail(e); } }
+    else if (view === "insights") { S.insights = null; render(); try { S.insights = await api("/api/insights"); } catch (e) { fail(e); } }
     else { try { await loadState(); } catch (e) { fail(e); } }
     render();
     window.scrollTo(0, 0);
@@ -520,7 +549,7 @@ ol.steps li { margin: 4px 0; }
       tile("Waiting for a reply", c.new, c.saved ? c.saved + " saved for later" : "Best matches first", true),
       tile("Replied this week", S.app.replied_this_week, plural(c.replied, "reply", "replies") + " all time"),
       tile("Found in last scan", scan ? scan.new : "–", scan ? plural(scan.drafted, "reply", "replies") + " drafted" : "No scan yet"),
-      tile("Filtered out for you", c.filtered, "Low relevance, kept just in case"));
+      tile("Replies to check back on", c.followup, c.followup ? "See whether anyone answered" : "Nothing due right now"));
   }
   function setupCard() {
     const items = S.app.setup, done = items.filter(i => i.ok).length;
@@ -537,7 +566,7 @@ ol.steps li { margin: 4px 0; }
     const counts = S.app.counts;
     const tabs = h("div", { class: "seg", role: "tablist" }, TABS.map(([key, name]) =>
       h("button", { role: "tab", "aria-selected": S.tab === key ? "true" : "false", onclick: () => { S.tab = key; S.platform = ""; S.selected = null; reloadThreads(); } },
-        name, h("span", { class: "c" + (key === "new" && counts.new ? " hot" : ""), text: counts[key] || 0 }))));
+        name, h("span", { class: "c" + ((key === "new" || key === "followup") && counts[key] ? " hot" : ""), text: counts[key] || 0 }))));
     const chips = [h("button", { class: "chip", "aria-pressed": S.platform === "" ? "true" : "false", onclick: () => { S.platform = ""; reloadThreads(); }, text: "All" })];
     Object.keys(PLATFORMS).forEach(key => {
       if (!S.platforms[key] && S.platform !== key) return;
@@ -583,6 +612,7 @@ ol.steps li { margin: 4px 0; }
       saved: ["inbox", "Nothing saved", "Save a conversation to come back to it later."],
       replied: ["pen", "No replies yet", "Conversations you've replied to are kept here."],
       dismissed: ["inbox", "Nothing dismissed", "Conversations you skip are kept here in case you change your mind."],
+      followup: ["clock", "Nothing to check back on", "A day after you reply, the conversation shows up here so you can see whether anyone answered."],
       filtered: ["spark", "Nothing filtered out", "Conversations the AI judges a poor fit land here, so nothing is ever lost."] };
     return box.apply(null, messages[S.tab]);
   }
@@ -592,7 +622,8 @@ ol.steps li { margin: 4px 0; }
     if (keepFocus) { const box = document.getElementById("search"); if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); } }
   }
   function listItem(thread) {
-    const flag = thread.status === "replied" ? [icon("done"), "Replied " + ago(thread.status_at)]
+    const flag = S.tab === "followup" ? [icon("clock"), "Check for answers"]
+      : thread.status === "replied" ? [icon("done"), "Replied " + ago(thread.status_at) + (S.app.counted_links && thread.clicks ? " · " + plural(thread.clicks, "click") : "")]
       : thread.draft ? [icon("pen"), "Reply drafted"] : null;
     return h("button", { class: "item " + band(thread.score), "aria-current": thread.id === S.selected ? "true" : null, "data-id": thread.id,
                          onclick: () => select(thread.id, true) },
@@ -645,7 +676,7 @@ ol.steps li { margin: 4px 0; }
     const url = safeUrl(thread.url);
     el.append(h("button", { class: "btn quiet small back", onclick: () => { S.open = false; render(); } }, icon("back"), "All conversations"));
     el.append(h("div", { class: "meta" },
-      h("span", { class: "badge" }, h("span", { class: "pdot " + thread.platform }), PLATFORMS[thread.platform] === "Forums & web" ? "Web" : PLATFORMS[thread.platform] || "Web"),
+      h("span", { class: "badge" }, h("span", { class: "pdot " + thread.platform }), thread.platform === "web" ? "Web" : PLATFORMS[thread.platform] || "Web"),
       h("span", { text: thread.community }), thread.author ? h("span", { text: "· " + thread.author }) : null,
       h("span", { text: "· " + (thread.created_at ? "posted " + ago(thread.created_at) : "found " + ago(thread.found_at)) }),
       h("span", { class: "score", title: thread.ai_score === null ? "Keyword match score (not read by the AI yet)" : "How worthwhile the AI thinks a reply is" },
@@ -660,9 +691,29 @@ ol.steps li { margin: 4px 0; }
     }
     const tags = thread.topics.map(name => h("span", { class: "tag t", text: name })).concat(thread.matched.map(p => h("span", { class: "tag", text: "“" + p + "”" })));
     if (tags.length) el.append(h("div", { class: "tags" }, tags));
-    if (thread.ai_reason) el.append(h("div", { class: "why" }, icon("spark"), h("span", { text: thread.ai_reason })));
+    if (thread.ai_reason) el.append(h("div", { class: "why" }, icon("spark"), h("span", { text: thread.ai_reason + (thread.has_page ? " (Read the full page.)" : "") })));
+    const limitPer = S.app.weekly_limit;
+    if (thread.status !== "replied" && limitPer && thread.community_replies >= limitPer) el.append(h("div", { class: "guard warn" }, icon("alert"),
+      h("span", {}, h("b", { text: "Go easy here. " }), "You've replied " + plural(thread.community_replies, "time") + " in " + thread.community +
+        " in the last 7 days. More can look like promotion and get an account flagged.")));
+    if (thread.community_notes || thread.no_links) el.append(h("div", { class: "guard" }, icon("pen"),
+      h("span", {}, h("b", { text: "Your notes for " + thread.community + ": " }), [thread.community_notes, thread.no_links ? "No links here." : ""].filter(Boolean).join(" "))));
 
     if (thread.status === "replied") {
+      const due = thread.followup_at && new Date(thread.followup_at).getTime() <= Date.now();
+      const follow = async (value, message) => {
+        try { const data = await api("/api/threads/" + thread.id, { followup: value }); S.app.counts = data.counts;
+              if (S.tab === "followup") { const i = S.threads.findIndex(t => t.id === thread.id); S.threads = S.threads.filter(t => t.id !== thread.id);
+                S.total = Math.max(0, S.total - 1); const next = S.threads[Math.min(i, S.threads.length - 1)]; S.selected = next ? next.id : null; if (!next) S.open = false; }
+              else replaceThread(data.thread);
+              render(); toast(message); } catch (e) { fail(e); }
+      };
+      if (thread.followup_at) el.append(h("div", { class: "confirm" },
+        h("span", { text: due ? "Time to check back: did anyone answer your reply?" : "You'll be reminded to check back " + (new Date(thread.followup_at).getTime() - Date.now() < 36e5 * 30 ? "tomorrow" : "in a few days") + "." }),
+        due ? h("button", { class: "btn primary small", onclick: () => follow("done", "Done. No more reminders for this one.") }, icon("check"), "Done checking") : null,
+        due ? h("button", { class: "btn small", text: "Remind me tomorrow", onclick: () => follow(24, "You'll be reminded tomorrow.") })
+            : h("button", { class: "btn small", text: "Don't remind me", onclick: () => follow("done", "Reminder removed.") })));
+      if (S.app.counted_links) el.append(h("div", { class: "facts" }, h("span", {}, h("b", { text: thread.clicks }), " " + (thread.clicks === 1 ? "click" : "clicks") + " on your link")));
       el.append(h("div", { class: "reply" },
         h("div", { class: "reply-head" }, "Your reply", h("span", { class: "hint", text: "Marked replied " + ago(thread.status_at) })),
         thread.reply_text ? h("div", { class: "posted", text: thread.reply_text }) : h("div", { class: "inline-note", text: "No reply text was saved." }),
@@ -671,8 +722,8 @@ ol.steps li { margin: 4px 0; }
       return;
     }
 
-    const limit = thread.platform === "threads" ? 500 : 0;
-    const link = S.app.links[thread.platform] || "";
+    const limit = LIMITS[thread.platform] || 0;
+    const link = thread.no_links ? "" : (thread.link || "");
     const counter = h("span", { class: "hint" });
     const area = h("textarea", { class: "draft", "aria-label": "Your reply", placeholder: S.app.ai ? "Write your reply, or let the AI draft one." : "Write your reply here." });
     area.value = thread.draft || "";
@@ -708,7 +759,7 @@ ol.steps li { margin: 4px 0; }
     const open = h("a", { class: "btn primary", href: url, target: "_blank", rel: "noopener noreferrer" }, icon("out"), "Copy reply & open thread", h("kbd", { text: "C" }));
     open.addEventListener("click", e => {
       if (!area.value.trim()) { e.preventDefault(); toast("Write or draft a reply first."); area.focus(); return; }
-      if (limit && area.value.length > limit && !confirm("This reply is longer than Threads allows (" + limit + " characters). Open the thread anyway?")) { e.preventDefault(); return; }
+      if (limit && area.value.length > limit && !confirm("This reply is longer than " + PLATFORMS[thread.platform] + " allows (" + limit + " characters). Open the thread anyway?")) { e.preventDefault(); return; }
       ui.copied = copyText(area.value);
       saveDraft();
       ui.confirm = true;
@@ -781,6 +832,46 @@ ol.steps li { margin: 4px 0; }
         h("button", { class: "btn wide", text: "Close", onclick: () => { S.help = false; render(); } })));
   }
 
+  // ---- results -----------------------------------------------------------------------------------------
+  function insightsView() {
+    const r = S.insights;
+    if (!r) return h("div", { class: "center", style: "padding:80px" }, h("span", { class: "spin" }));
+    const tile = (label, value, note) => h("div", { class: "kpi" }, h("div", { class: "label", text: label }), h("div", { class: "value", text: value }), h("div", { class: "note", text: note }));
+    const table = (title, help, rows, first, nameOf) => {
+      if (!rows.length) return h("div", { class: "panel" }, h("h2", { text: title }), h("p", { class: "help", text: "Nothing yet. This fills in as conversations are found." }));
+      const measure = r.counted ? "clicks" : "replied";
+      const top = Math.max(1, ...rows.map(row => row[measure]));
+      return h("div", { class: "panel" }, h("h2", { text: title }), help ? h("p", { class: "help", text: help }) : null,
+        h("div", { class: "scroll-x" }, h("table", { class: "t" },
+          h("thead", {}, h("tr", {}, h("th", { text: first }), h("th", { text: "Found" }), h("th", { text: "Worth a reply" }), h("th", { text: "Replied" }),
+            r.counted ? h("th", { text: "Clicks" }) : null, h("th", { "aria-hidden": "true" }))),
+          h("tbody", {}, rows.map(row => h("tr", {},
+            h("td", { class: "name" }, nameOf ? nameOf(row) : row.name, row.weak ? h("span", { class: "muted-tag", title: "Keeps finding conversations that aren't worth a reply, so it is searched half as often", text: "searched less" }) : null),
+            h("td", { text: row.found }), h("td", { text: row.good }), h("td", { text: row.replied }), r.counted ? h("td", { text: row.clicks }) : null,
+            h("td", { class: "barcell" }, h("div", { class: "hbar", title: row[measure] + " " + measure }, row[measure] ? h("i", { style: "width:" + Math.round(row[measure] / top * 100) + "%" }) : null))))))));
+    };
+    const replies = r.replies.length ? h("div", { class: "panel" }, h("h2", { text: r.counted ? "Replies that brought the most clicks" : "Your recent replies" }),
+      r.replies.map(reply => h("div", { class: "row" }, h("div", { class: "growx" },
+        h("a", { class: "name", href: safeUrl(reply.url), target: "_blank", rel: "noopener noreferrer", text: reply.title }),
+        h("div", { class: "small", text: reply.community + " · replied " + ago(reply.at) })),
+        r.counted ? h("span", { class: "pill ok", text: plural(reply.clicks, "click") }) : null))) : null;
+    const t = r.totals;
+    return h("div", { style: "max-width:980px" },
+      h("h1", { text: "Results" }), h("p", { class: "sub", text: "The last " + r.days + " days: what was found, what you replied to, and what it brought." }),
+      h("div", { class: "kpis" }, tile("Conversations found", t.found, t.good + " worth a reply"), tile("Replies posted", t.replied, t.good ? Math.round(t.replied / t.good * 100) + "% of the good ones" : "None yet"),
+        tile("Clicks on your link", r.counted ? t.clicks : "–", r.counted ? (t.replied ? (t.clicks / t.replied).toFixed(1) + " per reply" : "No replies yet") : "Turn on counted links"),
+        tile("Trigger phrases", r.phrases.length, r.phrases.filter(p => p.weak).length + " searched less often")),
+      r.counted ? null : h("div", { class: "guard" }, icon("link"), h("span", {}, h("b", { text: "Clicks aren't being counted. " }),
+        "Turn on “Count clicks” under Settings → Link in replies to see which replies, communities and phrases bring visitors.")),
+      replies,
+      table("By platform", "", r.platforms, "Platform", row => PLATFORMS[row.name] || row.name),
+      table("By community", "The ten busiest communities.", r.communities, "Community"),
+      table("By topic", "", r.topics, "Topic"),
+      table("By trigger phrase", "Phrases that keep finding conversations not worth a reply are searched half as often, so paid searches go where they pay off." +
+        (r.phrases.some(p => !p.found) ? " " + r.phrases.filter(p => !p.found).length + " of your " + r.phrases.length + " phrases haven't found anything yet and aren't listed." : ""),
+        r.phrases.filter(p => p.found), "Phrase"));
+  }
+
   // ---- sources -----------------------------------------------------------------------------------------
   function sourcesView() {
     const labels = { ok: "Working", error: "Problem", off: "Not connected", waiting: "Waiting for first scan" };
@@ -836,6 +927,11 @@ ol.steps li { margin: 4px 0; }
       const base = s.brand.url.trim();
       if (!base) return preview.append("No link set, so replies won't contain a link.");
       if (s.link.mode === "never") return preview.append("Replies are drafted without a link. Each reply has an “Add your link” button that inserts ", h("b", { text: base }), ".");
+      if (s.link.via_radar) {
+        const via = (s.link.base.trim() || s.default_base || "").replace(/\/$/, "");
+        return preview.append(h("div", {}, "Replies will carry a link like ", h("b", { text: (via || "https://your-address") + "/go/a1b2c3d4e5" })),
+          h("div", {}, "It forwards to ", h("b", { text: s.link.track ? trackedLink(base, "reddit") : base }), " and counts the click. Change the link above later and every reply you ever posted follows it."));
+      }
       const show = (name, tag) => h("div", {}, name + " replies link to ", h("b", { text: s.link.track ? trackedLink(base, tag) : base }));
       preview.append(show("Reddit", "reddit"), show("Threads", "threads"), show("Forum", "forum"));
     };
@@ -846,6 +942,26 @@ ol.steps li { margin: 4px 0; }
       h("label", { class: "choice" }, h("input", { type: "radio", name: "linkmode", value, checked: s.link.mode === value,
         onchange: () => { s.link.mode = value; dirty(); drawPreview(); } }), h("b", { text: title }), h("small", { text }))));
     drawPreview();
+
+    const viaBox = h("div", { hidden: !s.link.via_radar },
+      field("Address the short links use", "Best on your own domain (for example go.runergylab.com, pointed at this dashboard): it looks trustworthy and communities often filter unfamiliar link shorteners. Leave empty to use this dashboard's address.",
+        textInput(s.link.base, v => { s.link.base = v.trim(); drawPreview(); }, "url", { placeholder: s.default_base || "https://go.runergylab.com", autocapitalize: "off", spellcheck: "false" })));
+
+    const comms = h("div", {});
+    const drawComms = () => {
+      comms.textContent = "";
+      s.communities.forEach((c, index) => {
+        const notes = h("textarea", { "aria-label": "Rules and notes for " + (c.name || "this community"), placeholder: "What to respect here, e.g. No self-promotion outside the weekly thread. Keep it under 100 words.",
+          oninput: e => { c.notes = e.target.value; dirty(); } });
+        notes.value = c.notes;
+        comms.append(h("div", { class: "comm" }, h("div", { class: "topic-head" },
+          h("input", { type: "text", value: c.name, placeholder: "r/running", "aria-label": "Community", oninput: e => { c.name = e.target.value; dirty(); } }),
+          h("button", { class: "btn quiet small", text: "Remove", onclick: () => { s.communities.splice(index, 1); dirty(); drawComms(); } })), notes,
+          h("label", { class: "check" }, h("input", { type: "checkbox", checked: c.no_links, onchange: e => { c.no_links = e.target.checked; dirty(); } }), h("span", { text: "Links aren't allowed here (drafts will never include one)" }))));
+      });
+      comms.append(h("button", { class: "btn", onclick: () => { s.communities.push({ name: "", notes: "", no_links: false }); dirty(); drawComms(); } }, icon("plus"), "Add a community"));
+    };
+    drawComms();
 
     const topics = h("div", {});
     const drawTopics = () => {
@@ -875,7 +991,7 @@ ol.steps li { margin: 4px 0; }
     };
     drawFeeds();
 
-    const sections = [["s-link", "Link in replies"], ["s-topics", "Topics & phrases"], ["s-voice", "Your app & voice"], ["s-where", "Where to look"], ["s-limits", "Filters & limits"]];
+    const sections = [["s-link", "Link in replies"], ["s-alerts", "Alerts"], ["s-comm", "Communities"], ["s-topics", "Topics & phrases"], ["s-voice", "Your app & voice"], ["s-where", "Where to look"], ["s-limits", "Filters & limits"]];
     const toc = h("nav", { class: "toc", "aria-label": "Settings sections" }, sections.map(([id, name]) =>
       h("a", { href: "#" + id, text: name, onclick: e => { e.preventDefault(); document.getElementById(id).scrollIntoView({ behavior: "smooth" }); } })));
 
@@ -885,8 +1001,27 @@ ol.steps li { margin: 4px 0; }
         field("Link", "", textInput(s.brand.url, v => { s.brand.url = v.trim(); drawPreview(); }, "url", { placeholder: "https://runergylab.com", inputmode: "url", autocapitalize: "off", spellcheck: "false" })),
         h("div", { style: "font-weight:600;margin-bottom:8px", text: "When to include it" }), choices,
         h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.link.track, onchange: e => { s.link.track = e.target.checked; dirty(); drawPreview(); } }),
-          h("span", {}, "Tag the link so analytics shows where visitors came from", h("small", { text: "Adds utm_source (reddit, threads or forum) to the link. Makes the link longer." }))),
-        preview),
+          h("span", {}, "Tag the link so analytics shows where visitors came from", h("small", { text: "Adds utm_source (reddit, threads, bluesky or forum) to the address people land on." }))),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.link.via_radar, onchange: e => { s.link.via_radar = e.target.checked; dirty(); viaBox.hidden = !s.link.via_radar; drawPreview(); } }),
+          h("span", {}, "Count clicks, and keep old replies pointing at today's link", h("small", { text: "Replies carry a short link that passes through Radar. You see clicks per reply, and when you change the link above, replies you posted months ago follow it too." }))),
+        viaBox, preview),
+
+      h("div", { class: "panel", id: "s-alerts" }, h("h2", { text: "Alerts" }),
+        h("p", { class: "help", text: "Be told the moment a strong match appears, without opening Radar. On Reddit, a reply in the first hours gets read; a day later it mostly doesn't." }),
+        h("div", { class: "chan" }, S.app.alert_channels.length
+          ? [h("span", { class: "pill ok", text: "Connected: " + S.app.alert_channels.map(c => c === "telegram" ? "Telegram" : "Email").join(" and ") }),
+             h("button", { class: "btn small", onclick: async e => { const b = e.currentTarget; b.disabled = true;
+               try { const d = await api("/api/alerts/test", {}); toast("Test alert sent by " + d.sent.join(" and ") + "."); if (d.problems.length) toast(d.problems[0], { bad: true }); } catch (err) { fail(err); } b.disabled = false; } }, icon("bell"), "Send a test alert")]
+          : h("span", { class: "small", text: "Not connected yet. Add the Telegram or email settings to your project (see the setup guide), then redeploy." })),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.alerts.enabled, onchange: e => { s.alerts.enabled = e.target.checked; dirty(); } }), h("span", { text: "Send alerts" })),
+        h("div", { class: "grid2" },
+          field("Alert me about matches scoring at least", "85 keeps alerts to the best few a day.", textInput(s.alerts.min_score, v => s.alerts.min_score = v, "number", { min: 1, max: 100 })),
+          field("Remind me to check back after (hours)", "After you reply, see whether anyone answered. 0 turns reminders off.", textInput(s.followup_hours, v => s.followup_hours = v, "number", { min: 0, max: 336 })))),
+
+      h("div", { class: "panel", id: "s-comm" }, h("h2", { text: "Communities" }),
+        h("p", { class: "help", text: "Keep your accounts safe. Radar warns you when you're replying too often in one place, and the AI follows the notes you write for each community." }),
+        field("Warn me after this many replies in one community in 7 days", "0 turns the warning off.", textInput(s.community_weekly_limit, v => s.community_weekly_limit = v, "number", { min: 0, max: 50 })),
+        comms),
 
       h("div", { class: "panel", id: "s-topics" }, h("h2", { text: "Topics and trigger phrases" }),
         h("p", { class: "help", text: "Each phrase is searched for on the sites below and matched in feeds. Write them the way runners would type them. Phrases take turns, so a shorter, sharper list is checked more often." }),
@@ -918,6 +1053,13 @@ ol.steps li { margin: 4px 0; }
           field("AI drafts per scan", "", textInput(s.ai.drafts_per_scan, v => s.ai.drafts_per_scan = v, "number", { min: 0, max: 40 })),
           field("Hide conversations the AI scores below", "They go to Low relevance, never deleted.", textInput(s.ai.min_relevance, v => s.ai.min_relevance = v, "number", { min: 0, max: 100 }))),
         h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.ai.enabled, onchange: e => { s.ai.enabled = e.target.checked; dirty(); } }), h("span", { text: "Let the AI score conversations and draft replies" })),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.ai.learn, onchange: e => { s.ai.learn = e.target.checked; dirty(); } }),
+          h("span", {}, "Learn my voice from the replies I post", h("small", { text: "Your latest posted replies are shown to the AI as a style guide, so drafts sound more like you over time." }))),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.ai.read_page, onchange: e => { s.ai.read_page = e.target.checked; dirty(); } }),
+          h("span", {}, "Read the whole page before drafting", h("small", { text: "The AI sees the full post and the answers already there, where the site allows it." }))),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.smart_search, onchange: e => { s.smart_search = e.target.checked; dirty(); } }),
+          h("span", {}, "Spend searches where they pay off", h("small", { text: "Phrases that keep finding nothing worth a reply are searched half as often." }))),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.bluesky_enabled, onchange: e => { s.bluesky_enabled = e.target.checked; dirty(); } }), h("span", { text: "Search Bluesky (free)" })),
         h("label", { class: "check" }, h("input", { type: "checkbox", checked: s.threads_enabled, onchange: e => { s.threads_enabled = e.target.checked; dirty(); } }), h("span", { text: "Search Threads directly (when a Threads token is connected)" }))),
 
       h("div", { class: "savebar" }, h("button", { class: "btn primary", onclick: saveSettings }, icon("check"), "Save settings"),
@@ -931,7 +1073,7 @@ ol.steps li { margin: 4px 0; }
     button.disabled = true;
     try {
       const data = await api("/api/settings", { settings: S.settings });
-      S.settings = data.settings; S.app.topics = data.topics; S.app.links = data.links; S.app.link_mode = data.link_mode; S.dirty = false;
+      S.settings = data.settings; S.app.topics = data.topics; S.app.link_mode = data.link_mode; S.app.counted_links = data.counted_links; S.app.weekly_limit = data.weekly_limit; S.dirty = false;
       if (S.topic && !data.topics.includes(S.topic)) S.topic = "";
       toast("Settings saved." + (data.relinked ? " The link was updated in " + plural(data.relinked, "draft reply", "draft replies") + "." : ""));
       const y = window.scrollY; render(); window.scrollTo(0, y);
@@ -966,7 +1108,7 @@ ol.steps li { margin: 4px 0; }
     if (S.lock) return root.append(lockView());
     if (S.login) return root.append(loginView());
     if (!S.app) return root.append(h("div", { class: "center", style: "padding:120px" }, h("span", { class: "spin" })));
-    const view = S.view === "sources" ? sourcesView() : S.view === "settings" ? settingsView() : inboxView();
+    const view = S.view === "sources" ? sourcesView() : S.view === "settings" ? settingsView() : S.view === "insights" ? insightsView() : inboxView();
     root.append(shell(view));
     if (S.help) root.append(helpSheet());
   }

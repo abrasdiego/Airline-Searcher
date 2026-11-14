@@ -15,13 +15,13 @@ def settings(**link):
 
 def test_default_link_is_the_website():
     assert links.reply_link(defaults(), "reddit") == SITE
-    assert links.all_links(defaults()) == {"reddit": SITE, "threads": SITE, "web": SITE}
+    assert links.reply_link(defaults(), "bluesky", "abc") == SITE
     assert clean_settings({"brand": {"url": "runergylab.com/app"}})["brand"]["url"] == SITE + "/app"
     assert clean_settings({"brand": {"url": ""}})["brand"]["url"] == ""
     for bad in ("not a link", "ftp://x.example", "https://nodot"):
         with pytest.raises(ValueError):
             clean_settings({"brand": {"url": bad}})
-    assert clean_settings({"link": {"mode": "nonsense"}})["link"] == {"mode": "when_mentioned", "track": False}
+    assert clean_settings({"link": {"mode": "nonsense"}})["link"] == {"mode": "when_mentioned", "track": False, "via_radar": False, "base": ""}
 
 
 def test_tracking_tags_each_platform():

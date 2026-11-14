@@ -10,7 +10,10 @@ from radar.store import Store, reset_shared_store  # noqa: E402
 
 KEYS = ("RADAR_PASSWORD", "CRON_SECRET", "RADAR_CRON_SECRET", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
         "SERPAPI_API_KEY", "SERPAPI_KEY", "RADAR_SERPAPI_KEY", "THREADS_ACCESS_TOKEN", "VERCEL",
-        "DATABASE_URL", "POSTGRES_URL", "RADAR_DATABASE_URL", "RADAR_DB", "RADAR_MODEL")
+        "DATABASE_URL", "POSTGRES_URL", "RADAR_DATABASE_URL", "RADAR_DB", "RADAR_MODEL", "RADAR_URL",
+        "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_HOST", "SMTP_PORT",
+        "EMAIL_TO", "EMAIL_FROM", "BLUESKY_HANDLE", "BLUESKY_APP_PASSWORD", "FACEBOOK_PAGE_ID",
+        "FACEBOOK_PAGE_TOKEN")
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +34,7 @@ def store(request, tmp_path):
         if not url:
             pytest.skip("RADAR_TEST_POSTGRES not set")
         s = Store(url=url).ready()
-        for table in ("radar_threads", "radar_meta", "radar_locks"):
+        for table in ("radar_threads", "radar_meta", "radar_locks", "radar_clicks"):
             s._run(f"DELETE FROM {table}")
     else:
         s = Store(path=str(tmp_path / "s.db")).ready()
